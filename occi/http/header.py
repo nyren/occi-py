@@ -1,6 +1,6 @@
 import re
 
-from pyocci.http.utils import escape_quotes, split_quoted
+from occi.http.utils import escape_quotes, split_quoted
 
 class HttpHeadersBase(object):
     """Base class for representing a set of HTTP headers with the same name.
