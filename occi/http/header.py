@@ -2,6 +2,9 @@ import re
 
 from occi.http.utils import escape_quotes, split_quoted
 
+class HttpHeaderError(Exception):
+    pass
+
 class HttpHeadersBase(object):
     """Base class for representing a set of HTTP headers with the same name.
     I.e. support for comma-separated multiple headers.
