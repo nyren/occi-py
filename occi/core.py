@@ -155,7 +155,7 @@ class Entity(object):
 
     # Unique Kind instance for this class. Automatically initialised by the
     # Kind class.
-    __kind = None
+    _kind = None
 
     class EntityError(Exception):
         def __init__(self, item=None, message=None):
@@ -205,14 +205,14 @@ class Entity(object):
     @classmethod
     def set_kind(cls, kind):
         """Set the identifying Kind"""
-        assert(not cls.__kind)       # Must by set once only
-        cls.__kind = kind
+        assert(not cls._kind)       # Must by set once only
+        cls._kind = kind
 
     @classmethod
     def get_kind(cls):
         """Get the identifying Kind"""
-        assert(cls.__kind)
-        return cls.__kind
+        assert(cls._kind)
+        return cls._kind
 
     def add_category(self, category):
         # Resolve Category identifier
@@ -291,11 +291,13 @@ class Entity(object):
         return attr_list
 
 class Resource(Entity):
+    _kind = None
     def __init__(self, links=(), **kwargs):
         super(Resource, self).__init__(**kwargs)
         self.links = links
 
 class Link(Entity):
+    _kind = None
     def __init__(self, target=None, **kwargs):
         super(Link, self).__init__(**kwargs)
         self.target = target
@@ -312,7 +314,7 @@ EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
 ResourceKind = Kind('resource', 'http://schemas.ogf.org/occi/core#',
         related=EntityKind,
         title='Resource type',
-        entity=Resource,
+        entity_type=Resource,
         attributes=(
             Attribute('summary', required=False, mutable=True),
         ),
@@ -321,7 +323,7 @@ ResourceKind = Kind('resource', 'http://schemas.ogf.org/occi/core#',
 LinkKind = Kind('link', 'http://schemas.ogf.org/occi/core#',
         related=EntityKind,
         title='Link type',
-        entity=Link,
+        entity_type=Link,
         attributes=(
             Attribute('source', required=True, mutable=False),
             Attribute('target', required=True, mutable=True),

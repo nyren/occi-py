@@ -8,7 +8,7 @@ class OCCIServer(object):
 
     def __init__(self, backend):
         """A Backend object is required to instantiate an OCCI Server."""
-        self._categries = OrderedDict()
+        self._categories = OrderedDict()
         self.backend = backend
 
     def register_category(self, category):
@@ -25,13 +25,13 @@ class OCCIServer(object):
         except KeyError:
             raise Category.Invalid("%s: Category not registered", category)
 
-    def lookup_category(identifier):
+    def lookup_category(self, identifier):
         try:
             return self._categories[identifier]
         except KeyError:
             raise Category.DoesNotExist
 
-    def lookup_location(path):
+    def lookup_location(self, path):
         assert(False)
 
 class OCCIBackend(object):
