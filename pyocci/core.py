@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2009-2010  Ralf Nyren <ralf@nyren.net>
+# Copyright (C) 2009-2011  Ralf Nyren <ralf@nyren.net>
 # All rights reserved.
 #
 
@@ -60,21 +60,25 @@ class BoolAttribute(Attribute):
         return 'n'
 
 class Category(object):
+    """The OCCI Category type."""
 
-    # Dict of all Categories defined
-    _categories = OrderedDict()
-
-    class DoesNotExist(Exception):
+    class CategoryError(Exception):
+        pass
+    class Invalid(CategoryError):
+        pass
+    class DoesNotExist(CategoryError):
         pass
 
-    def __init__(self, term, scheme, title=None, related=None, attributes=None, entity=None):
+    def __init__(self, term, scheme, title=None, related=None, attributes=None,
+            entity_type=None, location=None):
         self.term = term
         self.scheme = scheme
         self.title = title
         self.related = related
         self.attributes = []
         self.unique_attributes = []
-        self.entity = entity
+        self.entity_type = entity_type
+        self.location = location
 
         # Attributes
         if related:
@@ -82,23 +86,6 @@ class Category(object):
         if attributes:
             self.attributes.extend(attributes)
             self.unique_attributes = attributes
-
-        # Add new Category to list of all categories
-        self.register(self)
-
-        # Set identifying category of entity sub-type
-        if self.entity:
-            self.entity.set_category(self)
-
-    @classmethod
-    def register(cls, category):
-        assert(str(category) not in cls._categories)
-        cls._categories[str(category)] = category
-
-    @classmethod
-    def unregister(cls, category):
-        assert(str(category) in cls._categories)
-        del cls._categories[str(category)]
 
     def __repr__(self):
         return "%s('%s', '%s')" % (self.__class__.__name__, self.term, self.scheme)
@@ -117,24 +104,58 @@ class Category(object):
             current = current.related
         return False
 
-    @classmethod
-    def all(cls):
-        return cls._categories.itervalues()
+class Kind(Category):
+    """The OCCI Kind type.
 
-    @classmethod
-    def find(cls, cat):
-        try:
-            return cls._categories[cat]
-        except KeyError:
-            raise cls.DoesNotExist
+    A Kind instance uniquely identifies an Entity sub-type.
+    """
+    def __init__(self, term, scheme, actions=None, entity_type=None, location=None, **kwargs):
+        super(Kind, self).__init__(term, scheme, **kwargs)
+        self.actions = actions
+        self.entity_type = entity_type
+        self.location = location
+
+        if self.entity_type:
+            self.entity_type.set_kind(self)
+
+        if self.related and not isinstance(self.related, Kind):
+            raise Category.Invalid("Kind instance can only be related to other Kind instances")
+
+class Mixin(Category):
+    """The OCCI Mixin type.
+
+    A Mixin instance adds additional capabilities (attributes and actions) to
+    an existing resource instance. A 'resource instance' is an instance of a
+    sub-type of Entity.
+    """
+    def __init__(self, term, scheme, actions=None, location=None, **kwargs):
+        super(Mixin, self).__init__(term, scheme, **kwargs)
+        self.actions = actions
+        self.location = location
+
+        if self.related and not isinstance(self.related, Mixin):
+            raise Category.Invalid("Mixin instance can only be related to other Mixin instances")
+
+class Action(object):
+    """The OCCI Action type.
+
+    An Action represents an invocable operation on a resource instance.
+    """
+    pass
 
 class Entity(object):
-    """The OCCI Entity, an abstract type inherited by Resource, Link and Action.
-    Each sub-type of Entity MUST have its own unqiue identifying Category.
+    """The OCCI Entity (abstract) type.
+
+    The abstract Entity type is inherited by the Resource and Link types. The
+    Entity type and any sub-type thereof MUST have its own unique identifying
+    Kind instance.
+
+    A 'resource instance' is an instance of a sub-type of Entity.
     """
 
-    # Identifying "type" Category. Override in sub-class.
-    _category = None
+    # Unique Kind instance for this class. Automatically initialised by the
+    # Kind class.
+    __kind = None
 
     class EntityError(Exception):
         def __init__(self, item=None, message=None):
@@ -182,16 +203,16 @@ class Entity(object):
             self.attributes[attr] = value
 
     @classmethod
-    def set_category(cls, category):
-        """Set the identifying Category"""
-        assert(not cls._category)       # Must only be set once
-        cls._category = Category.find(str(category))
+    def set_kind(cls, kind):
+        """Set the identifying Kind"""
+        assert(not cls.__kind)       # Must by set once only
+        cls.__kind = kind
 
     @classmethod
-    def get_category(cls):
-        """Get the identifying Category"""
-        assert(cls._category)
-        return cls._category
+    def get_kind(cls):
+        """Get the identifying Kind"""
+        assert(cls.__kind)
+        return cls.__kind
 
     def add_category(self, category):
         # Resolve Category identifier
@@ -274,30 +295,34 @@ class Resource(Entity):
         super(Resource, self).__init__(**kwargs)
         self.links = links
 
-    def get_actions(self):
-        return []
-    actions = property(get_actions)
-
 class Link(Entity):
     def __init__(self, target=None, **kwargs):
         super(Link, self).__init__(**kwargs)
         self.target = target
 
-ResourceCategory = Category('resource', 'http://schemas.ogf.org/occi/core#',
-        title='Resource',
-        entity=Resource,
+EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
+        title='Entity type',
+        entity_type=Entity,
         attributes=(
             Attribute('id', required=False, mutable=False),
             Attribute('title', required=True, mutable=True),
+        ),
+)
+
+ResourceKind = Kind('resource', 'http://schemas.ogf.org/occi/core#',
+        related=EntityKind,
+        title='Resource type',
+        entity=Resource,
+        attributes=(
             Attribute('summary', required=False, mutable=True),
         ),
 )
 
-LinkCategory = Category('link', 'http://schemas.ogf.org/occi/core#',
-        title='Link',
+LinkKind = Kind('link', 'http://schemas.ogf.org/occi/core#',
+        related=EntityKind,
+        title='Link type',
         entity=Link,
         attributes=(
-            Attribute('id', required=False, mutable=False),
             Attribute('source', required=True, mutable=False),
             Attribute('target', required=True, mutable=True),
         ),
