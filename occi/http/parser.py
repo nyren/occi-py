@@ -10,10 +10,40 @@ class ParserError(Exception):
     pass
 
 def parser(content_type=None):
-    try:
-        p = _parsers[content_type]
-    except KeyError:
-        raise ParserError('%s: Content-Type not supported')
+    """Return a parser for the given Content-Type.
+
+    >>> p = parser('text/occi')
+    >>> isinstance(p, HeaderParser)
+    True
+    >>> p = parser('text/plain')
+    >>> isinstance(p, TextPlainParser)
+    True
+    >>> p = parser()
+    >>> isinstance(p, HeaderParser)
+    True
+    >>> p = parser('application/not-supported')
+    Traceback (most recent call last):
+        File "parser.py", line 41, in parser
+    ParserError: ('%s: Content-Type not supported', 'application/not-supported')
+    """
+    p = None
+    if not content_type:
+        p = _parsers.get(None)
+    else:
+        h = HttpHeadersBase()
+        h.parse(content_type or '')
+        for value in h.headers():
+            value = value.split(';', 1)[0].strip()
+            try:
+                p = _parsers[value]
+            except KeyError:
+                pass
+            else:
+                break
+
+    if not p:
+        raise ParserError('%s: Content-Type not supported', content_type)
+    return p()
 
 def register_parser(content_type, parser):
     _parsers[content_type] = parser
