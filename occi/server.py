@@ -37,11 +37,15 @@ class OCCIServer(object):
 class OCCIBackend(object):
     __metaclass__ = ABCMeta
 
-    def get_entity(self, id):
+    def get_entity(self, entitiy_id):
         pass
-    def filter_entities(self, categories=None, attributes=None):
+    def filter_entities(self, categories=None, attributes=None, id_prefix=None):
+        """not too sure about id_prefix filtering, i.e. path"""
         pass
     def save_entity(self, entity):
+        """
+        :return entity_id: string
+        """
         pass
     def delete_entity(self, entity):
         pass
