@@ -1,5 +1,8 @@
 def escape_quotes(s, quotechar='"', escapechar='\\'):
     """Escape quote character and also escape the escape character itself.
+
+    >>> escape_quotes('This is a "little" VM')
+    'This is a \\\\"little\\\\" VM'
     """
     buf = ''
     for c in s:
