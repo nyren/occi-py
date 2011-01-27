@@ -109,11 +109,8 @@ class Kind(Category):
     def __init__(self, term, scheme, actions=None, entity_type=None, location=None, **kwargs):
         super(Kind, self).__init__(term, scheme, **kwargs)
         self.actions = actions
-        self.entity_type = entity_type
+        self.entity_type = entity_type or Entity
         self.location = location
-
-        if self.entity_type:
-            self.entity_type.set_kind(self)
 
         if self.related and not isinstance(self.related, Kind):
             raise Category.Invalid("Kind instance can only be related to other Kind instances")
@@ -150,10 +147,6 @@ class Entity(object):
     A 'resource instance' is an instance of a sub-type of Entity.
     """
 
-    # Unique Kind instance for this class. Automatically initialised by the
-    # Kind class.
-    _kind = None
-
     class EntityError(Exception):
         def __init__(self, item=None, message=None):
             self.item = item
@@ -182,74 +175,94 @@ class Entity(object):
     class RequiredAttribute(EntityError):
         _name = 'Required attribute'
 
-    def __init__(self, categories=[], attributes=[], obj=None):
-        self.categories = OrderedDict()
-        self.attributes = {}
-        self.obj = obj
+    def __init__(self, kind, mixins=[]):
+        self.id = None
+        self._occi_kind = None
+        self._occi_mixins = {}
+        self._occi_attributes = {}
 
-        # Add type Category
-        self.add_category(self._category)
+        # Set the Kind of this resource instance
+        if not isinstance(kind, Kind) or not kind.is_related(EntityKind):
+            raise self.InvalidCategory(kind, 'not a valid Kind instance')
+        self._occi_kind = kind
 
-        # Add additional Categories
-        for category in categories:
-            self.add_category(category)
+        # Add additional Mixins
+        for mixin in mixins:
+            self.add_occi_mixin(mixin)
 
-        # Add attributes
-        for attr, value in attributes:
-            assert(attr not in self.attributes)
-            self.attributes[attr] = value
+    def add_occi_mixin(self, mixin):
+        cat_id = str(mixin)
 
-    @classmethod
-    def set_kind(cls, kind):
-        """Set the identifying Kind"""
-        assert(not cls._kind)       # Must by set once only
-        cls._kind = kind
+        # Must be a Mixin type
+        if not isinstance(mixin, Mixin):
+            raise self.InvalidCategory(mixin, 'not a Mixin instance')
 
-    @classmethod
-    def get_kind(cls):
-        """Get the identifying Kind"""
-        assert(cls._kind)
-        return cls._kind
+        # Save mixin
+        self._occi_mixins[cat_id] = mixin
 
-    def add_category(self, category):
-        # Resolve Category identifier
-        cat_id = str(category)
+    def remove_occi_mixin(self, mixin):
         try:
-            category = Category.find(cat_id)
-        except Category.DoesNotExist:
-            raise self.UnknownCategory(cat_id)
+            del self._occi_mixins[str(mixin)]
+        except KeyError:
+            raise self.UnknownCategory(mixin, 'not found')
 
-        # Category can only define this Entity type and no other
-        if category.entity and category.entity != self.__class__:
-            raise self.InvalidCategory('%s: type defining category mismatch (!= %s)' % (
-                category, self._category))
+    def list_occi_categories(self):
+        return [self._occi_kind] + self._occi_mixins.values()
 
-        # Add Category if not already present
-        if cat_id not in self.categories:
-            self.categories[cat_id] = category
+    def get_occi_attributes(self, convert=False):
+        """Get list of OCCI attribute key-value pairs.
 
-    def list_categories(self):
-        #return self.categories.itervalues()
-        return self.categories.values()
-
-    def load_request_data(self, categories=[], attributes=[]):
-        """Load request data into Entity object.
-            categories - list of Category identifier strings
-            attributes - list of (key, value) pairs where key is the attribute
-                         name and value is a string
+        Optionally convert to attribute value from OCCI native format to a
+        string.
         """
+        attr_list = []
+        for category in self.list_occi_categories():
+            for attribute in category.attributes:
+                try:
+                    value = self._occi_attributes[attribute.name]
+                except KeyError:
+                    pass
+                else:
+                    if convert:
+                        value = attribute.to_string(value)
+                    attr_list.append((attribute.name, value))
+        return attr_list
+
+    def set_occi_attributes(self, attr_list, validate=True):
+        """Set the values of the OCCI attributes defined for this resource
+        instance.
+
+        :param attr_list: List of key-value tuples
+        :param validate: Boolean whether to validate the attribute set
+
+        >>> entity = Entity(ResourceKind)
+        >>> attrs = [('summary', 'blah blah')]
+        >>> entity.set_occi_attributes(attrs, validate=True)
+        Traceback (most recent call last):
+            File "core.py", line 273, in set_occi_attributes
+                raise self.RequiredAttribute(attribute.name)
+        RequiredAttribute: "title": Required attribute
+        >>> attrs += [('title', 'A "tiny" resource instance')]
+        >>> entity.set_occi_attributes(attrs, validate=True)
+        >>> entity.get_occi_attributes(convert=True)
+        [('title', 'A "tiny" resource instance'), ('summary', 'blah blah')]
+        >>> attrs += [('summary', 'duplicate')]
+        >>> entity.set_occi_attributes(attrs, validate=True)
+        Traceback (most recent call last):
+            File "core.py", line 256, in set_occi_attributes
+                raise self.DuplicateAttribute(attr)
+        DuplicateAttribute: "summary": Duplicate attribute
+
+        """
+        # Load supplied attributes into a dictionary
         attr_dict = {}
-        for attr, value in attributes:
+        for attr, value in attr_list:
             if attr in attr_dict:
                 raise self.DuplicateAttribute(attr)
             attr_dict[attr] = value
 
-        # Add categories
-        for cat_id in categories:
-            self.add_category(cat_id)
-
-        # Add attributes
-        for category in self.list_categories():
+        # Add attributes to the Entity instance
+        for category in self.list_occi_categories():
             for attribute in category.attributes:
                 try:
                     value = attr_dict[attribute.name]
@@ -260,41 +273,27 @@ class Entity(object):
                     # Attribute mutable if:
                     #  - attribute.mutable == True
                     #  - attribute.required == True and attribute.mutable == False and attribute not yet specified (write once)
-                    if attribute.mutable or (
+                    if not validate or attribute.mutable or (
                             attribute.required and attribute.name not in self.attributes):
                         # Convert and save new attibute value
-                        self.attributes[attribute.name] = attribute.from_string(value)
+                        self._occi_attributes[attribute.name] = attribute.from_string(value)
                     else:
                         raise self.ImmutableAttribute(attribute.name)
 
                 # Check required attribute
-                if attribute.required and attribute.name not in self.attributes:
+                if validate and attribute.required and attribute.name not in self._occi_attributes:
                     raise self.RequiredAttribute(attribute.name)
 
-        # Verify all request attributes have been handled
+        # Verify all supplied attributes have been handled
         if attr_dict:
             raise self.UnknownAttribute(attr_dict.keys()[0])
 
-    def dump_attributes(self):
-        attr_list = []
-        for category in self.list_categories():
-            for attribute in category.attributes:
-                try:
-                    value = self.attributes[attribute.name]
-                except KeyError:
-                    pass
-                else:
-                    attr_list.append((attribute.name, attribute.to_string(value)))
-        return attr_list
-
 class Resource(Entity):
-    _kind = None
     def __init__(self, links=(), **kwargs):
         super(Resource, self).__init__(**kwargs)
         self.links = links
 
 class Link(Entity):
-    _kind = None
     def __init__(self, target=None, **kwargs):
         super(Link, self).__init__(**kwargs)
         self.target = target
@@ -303,7 +302,6 @@ EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
         entity_type=Entity,
         attributes=(
-            Attribute('id', required=False, mutable=False),
             Attribute('title', required=True, mutable=True),
         ),
 )
@@ -331,3 +329,6 @@ ActionCategory = Category('action', 'http://schemas.ogf.org/occi/core#',
         title='Action')
 
 
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
