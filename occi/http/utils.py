@@ -17,6 +17,8 @@ def split_quoted(s, delimiter=',', quotechar='"', escapechar='\\', remove_quotes
     ['name="foo,bar"', 'size=40', ' key="value"']
     >>> split_quoted(r'name="foo,bar",size=40, key="value",', remove_quotes=True)
     ['name=foo,bar', 'size=40', ' key=value']
+    >>> split_quoted(r'name="foo,bar\\",size=40, key=", value=bar\\,foo, items=3', remove_quotes=True)
+    ['name=foo,bar",size=40, key=', ' value=bar,foo', ' items=3']
     """
     l = []
     quote = False
@@ -49,3 +51,8 @@ def split_quoted(s, delimiter=',', quotechar='"', escapechar='\\', remove_quotes
     if buf is not None:
         l.append(buf)
     return l
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
