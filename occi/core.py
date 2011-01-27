@@ -69,16 +69,13 @@ class Category(object):
     class DoesNotExist(CategoryError):
         pass
 
-    def __init__(self, term, scheme, title=None, related=None, attributes=None,
-            entity_type=None, location=None):
+    def __init__(self, term, scheme, title=None, related=None, attributes=None):
         self.term = term
         self.scheme = scheme
         self.title = title
         self.related = related
         self.attributes = []
         self.unique_attributes = []
-        self.entity_type = entity_type
-        self.location = location
 
         # Attributes
         if related:
