@@ -161,3 +161,19 @@ class HttpCategoryHeaders(HttpWebHeadersBase):
     True
     """
     pass
+
+class HttpAcceptHeaders(HttpWebHeadersBase):
+    """HTTP Accept header.
+
+    >>> s = 'text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/x-xbitmap, */*;q=0.1'
+    >>> h = HttpAcceptHeaders()
+    >>> h.parse(s)
+    [('text/html', {}), ('application/xml', {'q': '0.9'}), ('application/xhtml+xml', {}), ('image/png', {}), ('image/x-xbitmap', {}), ('*/*', {'q': '0.1'})]
+
+    """
+    pass
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
