@@ -3,6 +3,7 @@ import re
 from occi.core import Category, Kind, Mixin
 from occi.server import OCCIServer
 from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
+from occi.http.dataobject import DataObject, LinkRepr
 
 _parsers = {}
 
@@ -50,18 +51,6 @@ def get_parser(content_type=None):
         raise ParserError('%s: Content-Type not supported', content_type)
     return p()
 
-class DataObject(object):
-    """A data object transferred using the OCCI protocol.
-
-    A data object cat represent a resource instance, an action invocation,
-    filter parameters, etc. It is up to the handler of the particular request/response
-    to interpret the contents of a `DataObject`.
-    """
-    def __init__(self, categories=None, attributes=None, links=None):
-        self.categories = categories or []
-        self.links = links or []
-        self.attributes = attributes or []
-
 class Parser(object):
     """Parser base class.
 
@@ -70,13 +59,11 @@ class Parser(object):
 
     The result of the parse() method is stored in the following attributes:
     :var objects: A list of `DataObject` instances
-    :var locations: A list of URL strings
     :var accept_types: A list of content types (populated by Parser.parse())
 
     """
     def __init__(self):
         self.objects = []
-        self.locations = []
         self.accept_types = []
 
     def parse(self, headers=None, body=None):
@@ -119,8 +106,8 @@ class HeaderParser(Parser):
     []
     >>> p.objects[0].attributes
     [('title', 'Test Network, testing'), ('occi.network.label', 'intranet'), ('occi.network.address', '192.168.1.123'), ('occi.netwark.gateway', '192.168.1.1')]
-    >>> p.locations
-    []
+
+    >>> p.objects[0].location
 
     """
     def parse(self, headers=None, body=None):
@@ -147,13 +134,18 @@ class HeaderParser(Parser):
             elif name == 'x-occi-location':
                 location_headers = HttpHeadersBase()
                 location_headers.parse(value)
-                self.locations.extend(location_headers.all())
+                locations.extend(location_headers.all())
 
-        # Only possible to represent one data object with HTTP Headers
+        # Only possible to represent one "full" data object with HTTP Headers.
+        # Multiple data objects can only be represented with a location.
+        locations = locations or [None]
         self.objects.append(DataObject(
             categories=categories,
             links=links,
-            attributes=attributes))
+            attributes=attributes,
+            location=locations[0]))
+        for loc in locations[1:]:
+            self.objects.append(DataObject(location=loc))
 
     def _parse_category_header(self, header_value):
         categories = []
@@ -255,7 +247,7 @@ class TextPlainParser(Parser):
     >>> body += 'X-OCCI-Location: http://example.com/network/345\\n'
     >>> p = TextPlainParser()
     >>> p.parse(body=body)
-    >>> p.locations
+    >>> [obj.location for obj in p.objects]
     ['http://example.com/network/123', 'http://example.com/network/234', 'http://example.com/network/345']
     """
     def __init__(self):
@@ -264,10 +256,6 @@ class TextPlainParser(Parser):
     def get_objects(self):
         return self._header_parser.objects
     objects = property(get_objects)
-
-    def get_locations(self):
-        return self._header_parser.locations
-    locations = property(get_locations)
 
     def get_accept_types(self):
         return self._header_parser.accept_types
