@@ -2,7 +2,7 @@ import re
 
 from occi.core import Category, Kind, Mixin
 from occi.server import OCCIServer
-from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
+from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
 
 _parsers = {}
 
@@ -18,16 +18,16 @@ def unregister_parser(content_type):
 def get_parser(content_type=None):
     """Return a parser for the given Content-Type.
 
-    >>> p = parser('text/occi')
+    >>> p = get_parser('text/occi')
     >>> isinstance(p, HeaderParser)
     True
-    >>> p = parser('text/plain')
+    >>> p = get_parser('text/plain; charset=utf-8')
     >>> isinstance(p, TextPlainParser)
     True
-    >>> p = parser()
+    >>> p = get_parser()
     >>> isinstance(p, HeaderParser)
     True
-    >>> p = parser('application/not-supported')
+    >>> p = get_parser('application/not-supported')
     Traceback (most recent call last):
         File "parser.py", line 41, in parser
     ParserError: ('%s: Content-Type not supported', 'application/not-supported')
@@ -36,12 +36,11 @@ def get_parser(content_type=None):
     if not content_type:
         p = _parsers.get(None)
     else:
-        h = HttpHeadersBase()
+        h = HttpWebHeadersBase()
         h.parse(content_type or '')
-        for value in h.headers():
-            value = value.split(';', 1)[0].strip()
+        for c_type, c_params in h.all():
             try:
-                p = _parsers[value]
+                p = _parsers[c_type]
             except KeyError:
                 pass
             else:
@@ -50,31 +49,6 @@ def get_parser(content_type=None):
     if not p:
         raise ParserError('%s: Content-Type not supported', content_type)
     return p()
-
-class Parser(object):
-    """Parser base class.
-
-    A Parser must implement the parse() method which parses the provided HTTP
-    Headers and/or HTTP body into a set of data objects and/or location URLs.
-
-    The result of the parse() method is stored in the following attributes:
-    :var objects: A list of `DataObject` instances
-    :var locations: A list of URL strings
-
-    """
-    def __init__(self):
-        self.objects = []
-        self.locations = []
-
-    def parse(self, headers=None, body=None):
-        """The parse method doing the actual work.
-
-        :keyword headers: HTTP Headers represented as a list of tuples
-            containing the header name and value of each header line.
-        :keyword body: HTTP Body as a string.
-        """
-        raise NotImplementedError('%s: does not implement the parse() method',
-                self.__class__.__name__)
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -88,6 +62,43 @@ class DataObject(object):
         self.links = links or []
         self.attributes = attributes or []
 
+class Parser(object):
+    """Parser base class.
+
+    A Parser must implement the parse() method which parses the provided HTTP
+    Headers and/or HTTP body into a set of data objects and/or location URLs.
+
+    The result of the parse() method is stored in the following attributes:
+    :var objects: A list of `DataObject` instances
+    :var locations: A list of URL strings
+    :var accept_types: A list of content types (populated by Parser.parse())
+
+    """
+    def __init__(self):
+        self.objects = []
+        self.locations = []
+        self.accept_types = []
+
+    def parse(self, headers=None, body=None):
+        """The parse method doing the actual work. This method must be called
+        from the child-class parse method.
+
+        :keyword headers: HTTP Headers represented as a list of tuples
+            containing the header name and value of each header line.
+        :keyword body: HTTP Body as a string.
+        """
+        # Extract and parse Accept header
+        for name, value in headers or ():
+            if name.lower() == 'accept':
+                self._parse_accept_header(value)
+
+    def _parse_accept_header(self, header_value):
+        """Parse Accept header and store the accepted content types in
+        :var accept_types:
+        """
+        h = HttpWebHeadersBase()
+        for c_type, c_params in h.parse(header_value):
+            self.accept_types.append(c_type)
 
 class HeaderParser(Parser):
     """Parser for the text/occi content type.
@@ -113,17 +124,18 @@ class HeaderParser(Parser):
 
     """
     def parse(self, headers=None, body=None):
-        headers = headers or ()
         categories = []
         links = []
         attributes = []
         locations = []
 
         # Walk list of HTTP header name-value pairs
-        for name, value in headers:
+        for name, value in headers or ():
             name = name.lower()
 
-            if name == 'category':
+            if name == 'accept':
+                self._parse_accept_header(value)
+            elif name == 'category':
                 categories.extend(self._parse_category_header(value))
             elif name == 'link':
                 # FIXME - not allowing Link create/update using POST/PUT yet
@@ -217,6 +229,7 @@ class TextPlainParser(Parser):
 
     Data is transmitted in the HTTP Body.
 
+    >>> headers = [('Accept', 'text/*, */*;q=0.1')]
     >>> body  = 'Category: network; scheme="http://schemes.ogf.org/occi/infrastructure#";\\r\\n'
     >>> body += '    class=kind;\\r\\n'
     >>> body += '    title="Network Resource";\\r\\n'
@@ -228,7 +241,9 @@ class TextPlainParser(Parser):
     >>> body += 'X-OCCI-Attribute: occi.network.label=intranet\\r\\n'
     >>> body += 'X-OCCI-Attribute: occi.network.address="192.168.1.123", occi.netwark.gateway="192.168.1.1"\\r\\n'
     >>> p = TextPlainParser()
-    >>> p.parse(body=body)
+    >>> p.parse(headers=headers, body=body)
+    >>> p.accept_types
+    ['text/*', '*/*']
     >>> p.objects[0].categories
     [Kind('network', 'http://schemes.ogf.org/occi/infrastructure#'), Mixin('ipnetwork', 'http://schemes.ogf.org/occi/infrastructure#')]
     >>> p.objects[0].links
@@ -254,7 +269,12 @@ class TextPlainParser(Parser):
         return self._header_parser.locations
     locations = property(get_locations)
 
+    def get_accept_types(self):
+        return self._header_parser.accept_types
+    accept_types = property(get_accept_types)
+
     def parse(self, headers=None, body=None):
+        super(TextPlainParser, self).parse(headers, body)
         body = body or ''
         headers = []
         for h in re.sub(r'\n\s', ' ', body.replace('\r', '')).split('\n'):
