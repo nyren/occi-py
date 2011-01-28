@@ -8,16 +8,16 @@ _renderers= {}
 class RendererError(Exception):
     pass
 
-def renderer(accept_header=None):
-    """Return a renderer matching the list of accepted content-types.
-    """
-    pass
-
 def register_renderer(content_type, renderer):
     _renderers[content_type] = renderer
 
 def unregister_renderer(content_type):
     del _renderers[content_type]
+
+def get_renderer(accept_header=None):
+    """Return a renderer matching the list of accepted content-types.
+    """
+    pass
 
 class Renderer(object):
     """Renderer base class.

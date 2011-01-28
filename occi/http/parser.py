@@ -9,7 +9,13 @@ _parsers = {}
 class ParserError(Exception):
     pass
 
-def parser(content_type=None):
+def register_parser(content_type, parser):
+    _parsers[content_type] = parser
+
+def unregister_parser(content_type):
+    del _parsers[content_type]
+
+def get_parser(content_type=None):
     """Return a parser for the given Content-Type.
 
     >>> p = parser('text/occi')
@@ -44,12 +50,6 @@ def parser(content_type=None):
     if not p:
         raise ParserError('%s: Content-Type not supported', content_type)
     return p()
-
-def register_parser(content_type, parser):
-    _parsers[content_type] = parser
-
-def unregister_parser(content_type):
-    del _parsers[content_type]
 
 class Parser(object):
     """Parser base class.
