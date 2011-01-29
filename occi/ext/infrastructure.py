@@ -1,35 +1,39 @@
-from occi.core import (Category, Kind, Mixin, ResourceKind, LinkKind, Attribute, IntAttribute, FloatAttribute)
+from occi.core import (Category, Kind, Mixin, Resource, Link, ResourceKind,
+        LinkKind, Attribute, IntAttribute, FloatAttribute)
 
 ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
         title='Start Compute Resource')
 ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
         title='Stop Compute Resource')
 
-ComputeResourceKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
+ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Compute Resource',
         related=ResourceKind,
+        entity_type=Resource,
         attributes=(
             Attribute('occi.compute.architecture', required=False, mutable=False),
             IntAttribute('occi.compute.cores', required=False, mutable=True),
             Attribute('occi.compute.hostname', required=False, mutable=True),
-            FloatAttribute('occi.compute.speed', required=True, mutable=True),
-            FloatAttribute('occi.compute.memory', required=True, mutable=True),
+            FloatAttribute('occi.compute.speed', required=False, mutable=True),
+            FloatAttribute('occi.compute.memory', required=False, mutable=True),
             Attribute('occi.compute.state', required=False, mutable=False),
         )
 )
 
-StorageResourceKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
+StorageKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Storage Resource',
         related=ResourceKind,
+        entity_type=Resource,
         attributes=(
             FloatAttribute('occi.storage.size', required=True, mutable=True),
             Attribute('occi.storage.state', required=False, mutable=False),
         )
 )
 
-StorageLinkKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
+StorageLinkKind = Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Storage Link', 
         related=LinkKind,
+        entity_type=Link,
         attributes=(
             Attribute('occi.storagelink.deviceid', required=True, mutable=True),
             Attribute('occi.storagelink.mountpoint', required=False, mutable=True),
