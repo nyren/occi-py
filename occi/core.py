@@ -182,13 +182,16 @@ class Entity(object):
         self._occi_attributes = {}
 
         # Set the Kind of this resource instance
-        if not isinstance(kind, Kind) or not kind.is_related(EntityKind):
+        if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
             raise self.InvalidCategory(kind, 'not a valid Kind instance')
         self._occi_kind = kind
 
         # Add additional Mixins
         for mixin in mixins:
             self.add_occi_mixin(mixin)
+
+    def get_occi_kind(self):
+        return self._occi_kind
 
     def add_occi_mixin(self, mixin):
         cat_id = str(mixin)
@@ -209,7 +212,11 @@ class Entity(object):
     def list_occi_categories(self):
         return [self._occi_kind] + self._occi_mixins.values()
 
-    def get_occi_attributes(self, convert=False):
+    def get_occi_attribute(self, name):
+        """Get single OCCI attribute value."""
+        return self._occi_attributes.get(name)
+
+    def get_occi_attributes(self, convert=False, exclude=()):
         """Get list of OCCI attribute key-value pairs.
 
         Optionally convert to attribute value from OCCI native format to a
@@ -218,6 +225,8 @@ class Entity(object):
         attr_list = []
         for category in self.list_occi_categories():
             for attribute in category.attributes:
+                if attribute.name in exclude:
+                    continue
                 try:
                     value = self._occi_attributes[attribute.name]
                 except KeyError:
@@ -274,7 +283,7 @@ class Entity(object):
                     #  - attribute.mutable == True
                     #  - attribute.required == True and attribute.mutable == False and attribute not yet specified (write once)
                     if not validate or attribute.mutable or (
-                            attribute.required and attribute.name not in self.attributes):
+                            attribute.required and attribute.name not in self._occi_attributes):
                         # Convert and save new attibute value
                         self._occi_attributes[attribute.name] = attribute.from_string(value)
                     else:
@@ -289,20 +298,20 @@ class Entity(object):
             raise self.UnknownAttribute(attr_dict.keys()[0])
 
 class Resource(Entity):
-    def __init__(self, links=(), **kwargs):
-        super(Resource, self).__init__(**kwargs)
-        self.links = links
+    def __init__(self, kind, links=None, **kwargs):
+        super(Resource, self).__init__(kind, **kwargs)
+        self.links = links or []
 
 class Link(Entity):
-    def __init__(self, target=None, **kwargs):
-        super(Link, self).__init__(**kwargs)
+    def __init__(self, kind, target=None, **kwargs):
+        super(Link, self).__init__(kind, **kwargs)
         self.target = target
 
 EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
         entity_type=Entity,
         attributes=(
-            Attribute('title', required=True, mutable=True),
+            Attribute('title', required=False, mutable=True),
         ),
 )
 
