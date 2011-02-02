@@ -3,7 +3,10 @@
 # All rights reserved.
 #
 
-from ordereddict import OrderedDict
+try:
+    from ordereddict import OrderedDict
+except ImportError:
+    OrderedDict = dict
 
 class Attribute(object):
     class Invalid(Exception):
@@ -101,7 +104,91 @@ class Category(object):
             current = current.related
         return False
 
-class Kind(Category):
+class CategoryRegistry(object):
+    """Registry of all Category/Kind/Mixin instances currently known to the
+    OCCI server or client.
+
+    >>> reg = CategoryRegistry()
+    >>> from occi.ext.infrastructure import *
+    >>> reg.register(ComputeKind)
+    >>> reg.register(StorageKind)
+    >>> reg.register(StorageLinkKind)
+    >>> fooKind = Kind('foo', 'http://#', related=ResourceKind, location='compute/')
+    >>> reg.register(fooKind)
+    Traceback (most recent call last):
+      File "core.py", line 131, in register
+        raise Category.Invalid('%s: location path already defined' % category.location)
+    Invalid: compute/: location path already defined
+    >>> reg.lookup_id(str(ComputeKind))
+    Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')
+    >>> reg.lookup_location('storage/')
+    Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')
+    >>> reg.unregister(StorageKind)
+    >>> reg.unregister(ComputeKind)
+    >>> reg.all()
+    [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
+
+    """
+
+    def __init__(self):
+        self._categories = OrderedDict()
+        self._locations = {}
+
+    def register(self, category):
+        """Register a new Category/Kind/Mixin."""
+        s = str(category)
+        if s in self._categories:
+            self.unregister(s)
+        if category.location:
+            if category.location in self._locations:
+                raise Category.Invalid('%s: location path already defined' % category.location)
+            self._locations[category.location] = category
+        self._categories[s] = category
+
+    def unregister(self, category):
+        """Unregister a previously registered Category/Kind/Mixin."""
+        try:
+            category = self._categories[str(category)]
+        except KeyError:
+            raise Category.Invalid("%s: Category not registered", category)
+        else:
+            del self._categories[str(category)]
+            if category.location:
+                self._locations.pop(category.location, None)
+
+    def lookup_id(self, identifier):
+        try:
+            return self._categories[identifier]
+        except KeyError:
+            raise Category.DoesNotExist
+
+    def lookup_location(self, path):
+        loc = path.lstrip('/')
+        return self._locations.get(loc)
+
+    def all(self):
+        return self._categories.values()
+
+class ExtCategory(Category):
+    def __init__(self, *args, **kwargs):
+        super(ExtCategory, self).__init__(*args, **kwargs)
+        self._location = None
+
+    def get_location(self):
+        return self._location
+    def set_location(self, loc):
+        if not loc:
+            loc = None
+        elif loc[-1] != '/':
+            raise Category.Invalid("%s: invalid location path, must end with '/'" % loc)
+        else:
+            loc = loc.lstrip('/')
+        if not loc:
+            loc = None
+        self._location = loc
+    location = property(get_location, set_location)
+
+class Kind(ExtCategory):
     """The OCCI Kind type.
 
     A Kind instance uniquely identifies an Entity sub-type.
@@ -115,7 +202,7 @@ class Kind(Category):
         if self.related and not isinstance(self.related, Kind):
             raise Category.Invalid("Kind instance can only be related to other Kind instances")
 
-class Mixin(Category):
+class Mixin(ExtCategory):
     """The OCCI Mixin type.
 
     A Mixin instance adds additional capabilities (attributes and actions) to
@@ -244,17 +331,19 @@ class Entity(object):
         :param attr_list: List of key-value tuples
         :param validate: Boolean whether to validate the attribute set
 
-        >>> entity = Entity(ResourceKind)
+        >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)])
+        >>> entity = Entity(fooKind)
         >>> attrs = [('summary', 'blah blah')]
         >>> entity.set_occi_attributes(attrs, validate=True)
         Traceback (most recent call last):
-            File "core.py", line 273, in set_occi_attributes
+            File "core.py", line 362, in set_occi_attributes
                 raise self.RequiredAttribute(attribute.name)
-        RequiredAttribute: "title": Required attribute
+        RequiredAttribute: "com.example.bar": Required attribute
         >>> attrs += [('title', 'A "tiny" resource instance')]
+        >>> attrs += [('com.example.bar', 'Bar')]
         >>> entity.set_occi_attributes(attrs, validate=True)
         >>> entity.get_occi_attributes(convert=True)
-        [('title', 'A "tiny" resource instance'), ('summary', 'blah blah')]
+        [('title', 'A "tiny" resource instance'), ('summary', 'blah blah'), ('com.example.bar', 'Bar')]
         >>> attrs += [('summary', 'duplicate')]
         >>> entity.set_occi_attributes(attrs, validate=True)
         Traceback (most recent call last):
