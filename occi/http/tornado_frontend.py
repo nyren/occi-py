@@ -40,7 +40,11 @@ class OCCIHandler(tornado.web.RequestHandler):
         self._handle_request('delete', *args)
 
 from occi.server import OCCIServer, DummyBackend
+from occi.ext.infrastructure import *
 server = OCCIServer(backend=DummyBackend())
+server.registry.register(ComputeKind)
+server.registry.register(StorageKind)
+server.registry.register(StorageLinkKind)
 
 application = tornado.web.Application([
     (r"/api/-/", OCCIHandler, dict(handler=DiscoveryHandler(server))),

@@ -1,5 +1,9 @@
 from occi.core import Entity
 from occi.http import get_parser, get_renderer
+from occi.http.header import HttpHeaderError
+from occi.http.parser import ParserError
+from occi.http.renderer import RendererError
+from occi.http.dataobject import DataObject
 
 class HttpRequest(object):
     def __init__(self, headers, body, content_type=None,
@@ -11,8 +15,8 @@ class HttpRequest(object):
         self.query_args = query_args or {}
 
 class HttpResponse(object):
-    def __init__(self, status=200, headers=None, body=None):
-        self.status = status
+    def __init__(self, headers=None, body=None, status=None):
+        self.status = status or 200
         self.headers = headers or []
         self.body = body or ''
 
@@ -75,13 +79,13 @@ class EntityHandler(HandlerBase):
 
     def post(self, request, entity_id, user=None):
         """action"""
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
     def put(self, request, entity_id, user=None):
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
     def delete(self, request, entity_id, user=None):
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
 class CollectionHandler(HandlerBase):
     def get(self, request, path='', user=None):
@@ -89,24 +93,69 @@ class CollectionHandler(HandlerBase):
         return HttpResponse()
 
     def post(self, request, path, user=None):
-        """create resource instance
-         or
-        action on collection
+        """Create new resource instance(s) OR execute an action on the specified
+        collection.
         """
-        pass
+        # Action request?
+        if request.query_args:
+            return self._collection_action(request, path, user=user)
 
-    def _create_resource(self, request, path, user=None):
-        pass
+        # Parse request
+        try:
+            parser = get_parser(request.content_type)
+            parser.parse(request.headers, request.body)
+        except (ParserError, HttpHeaderError) as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Get renderer
+        try:
+            renderer = get_renderer(parser.accept_types)
+        except RendererError as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Any data-objects specified?
+        if not parser.objects:
+            return hrc.BAD_REQUEST('No resource instance(s) specified')
+
+        # Convert request objects to entity instances
+        entities = []
+        try:
+            for dao in parser.objects:
+                entities.append(dao.save_to_entity(
+                    category_registry=self.server.registry))
+        except DataObject.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Save all entities using a single backend operation
+        try:
+            id_list = self.server.backend.save_entities(entities, id_prefix=path, user=user)
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return hrc.SERVER_ERROR()
+
+        # Response is a list of locations
+        dao_list = []
+        for entity_id in id_list:
+            dao_list.append(DataObject(location=entity_id))
+
+        # Render response
+        headers, body = renderer.render(dao_list)
+
+        # Set Location header to the first ID
+        headers.append(('Location', id_list[0]))
+
+        return HttpResponse(headers, body)
+
     def _collection_action(self, request, path, user=None):
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
     def put(self, request, path, user=None):
         """Add resource instance to Mixin collection"""
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
     def delete(self, request, path, user=None):
         """Remove resource instance from Mixin collection"""
-        pass
+        return hrc.NOT_IMPLEMENTED()
 
 class DiscoveryHandler(HandlerBase):
     def get(self, request, user=None):
