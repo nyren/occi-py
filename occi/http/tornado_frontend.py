@@ -4,9 +4,10 @@ import occi
 from occi.http.handler import HttpRequest, EntityHandler, CollectionHandler, DiscoveryHandler
 
 class OCCIHandler(tornado.web.RequestHandler):
-    def __init__(self, application, request, handler=None):
+    def __init__(self, application, request, handler=None, args=None):
         super(OCCIHandler, self).__init__(application, request)
         self.handler = handler
+        self.args = args
 
     def _handle_request(self, verb, *args):
         request = HttpRequest(
@@ -15,6 +16,8 @@ class OCCIHandler(tornado.web.RequestHandler):
                 content_type=self.request.headers.get('Content-Type'),
                 query_args=self.request.arguments)
 
+        if self.args:
+            args = self.args
         response = getattr(self.handler, verb)(request, *args)
 
         # Status code of response
@@ -48,7 +51,7 @@ server.registry.register(StorageLinkKind)
 
 application = tornado.web.Application([
     (r"/api/-/", OCCIHandler, dict(handler=DiscoveryHandler(server))),
-    (r"/api/", OCCIHandler, dict(handler=CollectionHandler(server))),
+    (r"/api/", OCCIHandler, dict(handler=CollectionHandler(server), args=[''])),
     (r"/api/(.+/)", OCCIHandler, dict(handler=CollectionHandler(server))),
     (r"/api/(.+[^/])", OCCIHandler, dict(handler=EntityHandler(server))),
     ])
