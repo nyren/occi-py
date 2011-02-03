@@ -150,7 +150,7 @@ class CategoryRegistry(object):
         try:
             category = self._categories[str(category)]
         except KeyError:
-            raise Category.Invalid("%s: Category not registered", category)
+            raise Category.Invalid("%s: Category not registered" % category)
         else:
             del self._categories[str(category)]
             if category.location:
@@ -160,7 +160,7 @@ class CategoryRegistry(object):
         try:
             return self._categories[identifier]
         except KeyError:
-            raise Category.DoesNotExist
+            raise Category.DoesNotExist('"%s": Category does not exist' % identifier)
 
     def lookup_location(self, path):
         loc = path.lstrip('/')
