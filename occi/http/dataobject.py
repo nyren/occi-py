@@ -1,4 +1,4 @@
-from occi.core import Kind, Resource, Link
+from occi.core import Category, Kind, Resource, Link
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -106,13 +106,17 @@ class DataObject(object):
         location2id = location2id or (lambda x: x)
 
         # Resolve categories
-        kind, mixins = self._resolve_categories(self.categories, category_registry)
+        try:
+            kind, mixins = self._resolve_categories(self.categories,
+                    category_registry=category_registry)
+        except Category.DoesNotExist as e:
+            raise self.Invalid(e)
 
         # Create new entity if not specified already
         if not entity:
             # Kind instance required
-            if not entity and not kind:
-                raise self.Invalid('Kind instance not specified, cannot create Entity')
+            if not kind:
+                raise self.Invalid('Kind not specified, cannot create Entity')
             entity = kind.entity_type(kind, mixins)
         else:
             if kind and str(kind) != str(entity.get_occi_kind()):
@@ -173,7 +177,7 @@ class DataObject(object):
                 category = category_registry.lookup_id(str(category))
             if isinstance(category, Kind):
                 if kind is not None:
-                    raise self.Invalid('Only one Kind instance allowed to define a resource')
+                    raise self.Invalid('Only one Kind allowed to define a resource')
                 kind = category
             else:
                 mixins.append(category)
