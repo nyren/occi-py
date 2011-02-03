@@ -39,11 +39,14 @@ class OCCIHandler(tornado.web.RequestHandler):
     def delete(self, *args):
         self._handle_request('delete', *args)
 
+from occi.server import OCCIServer, DummyBackend
+server = OCCIServer(backend=DummyBackend())
+
 application = tornado.web.Application([
-    (r"/api/-/", OCCIHandler, dict(handler=DiscoveryHandler(''))),
-    (r"/api/", OCCIHandler, dict(handler=CollectionHandler(''))),
-    (r"/api/(.+/)", OCCIHandler, dict(handler=CollectionHandler(''))),
-    (r"/api/(.+[^/])", OCCIHandler, dict(handler=EntityHandler(''))),
+    (r"/api/-/", OCCIHandler, dict(handler=DiscoveryHandler(server))),
+    (r"/api/", OCCIHandler, dict(handler=CollectionHandler(server))),
+    (r"/api/(.+/)", OCCIHandler, dict(handler=CollectionHandler(server))),
+    (r"/api/(.+[^/])", OCCIHandler, dict(handler=EntityHandler(server))),
     ])
 
 if __name__ == '__main__':
