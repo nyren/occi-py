@@ -31,7 +31,7 @@ def get_parser(content_type=None):
     >>> p = get_parser('application/not-supported')
     Traceback (most recent call last):
         File "parser.py", line 41, in parser
-    ParserError: ('%s: Content-Type not supported', 'application/not-supported')
+    ParserError: "application/not-supported": Content-Type not supported
     """
     p = None
     if not content_type:
@@ -48,7 +48,7 @@ def get_parser(content_type=None):
                 break
 
     if not p:
-        raise ParserError('%s: Content-Type not supported', content_type)
+        raise ParserError('"%s": Content-Type not supported' % content_type)
     return p()
 
 class Parser(object):
