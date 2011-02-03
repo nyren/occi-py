@@ -249,6 +249,8 @@ class Entity(object):
             if self.message:
                 s += ': %s' % self.message
             return s
+    class DoesNotExist(EntityError):
+        _name = 'Resource instance does not exist'
     class UnknownCategory(EntityError):
         _name = 'Unknown Category'
     class InvalidCategory(EntityError):
