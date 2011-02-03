@@ -1,7 +1,7 @@
 import re
 
 from occi.core import Category, Kind, Mixin
-from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
+from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
 from occi.http.dataobject import DataObject, LinkRepr
 
 _renderers= {}
@@ -17,8 +17,38 @@ def unregister_renderer(content_type):
 
 def get_renderer(accept_header=None):
     """Return a renderer matching the list of accepted content-types.
+
+    >>> p = get_renderer('text/occi')
+    >>> isinstance(p, HeaderRenderer)
+    True
+    >>> p = get_renderer('text/plain; q=0.1 ')
+    >>> isinstance(p, TextPlainRenderer)
+    True
+    >>> p = get_renderer()
+    >>> isinstance(p, HeaderRenderer)
+    True
+    >>> p = get_renderer('application/not-supported')
+    Traceback (most recent call last):
+        File "renderer.py", line 41, in renderer
+    RendererError: "application/not-supported": No renderer found for requested content types
     """
-    pass
+    r = None
+    if not accept_header:
+        r = _renderers.get(None)
+    else:
+        h = HttpWebHeadersBase()
+        h.parse(accept_header or '')
+        for c_type, c_params in h.all():
+            try:
+                r = _renderers[c_type]
+            except KeyError:
+                pass
+            else:
+                break
+
+    if not r:
+        raise RendererError('"%s": No renderer found for requested content types' % accept_header)
+    return r()
 
 class Renderer(object):
     """Renderer base class.
@@ -117,10 +147,25 @@ class HeaderRenderer(Renderer):
                 raise RendererError('DataObject has no location')
             self.headers.append(('X-OCCI-Location', obj.location))
 
+class TextPlainRenderer(Renderer):
+    pass
+
+class TextURIListRenderer(Renderer):
+    pass
+
+class TextRenderer(Renderer):
+    """The default renderer. Uses text/plain for single object rendering and
+    text/uri-list for multiple objects rendering.
+    """
+    pass
+
 # Register required renderers
 register_renderer(None, HeaderRenderer)
 register_renderer('text/occi', HeaderRenderer)
-#register_renderer('text/plain', TextPlainRenderer)
+register_renderer('text/plain', TextPlainRenderer)
+register_renderer('text/uri-list', TextURIListRenderer)
+register_renderer('text/*', TextRenderer)
+register_renderer('*/*', TextRenderer)
 
 
 if __name__ == "__main__":
