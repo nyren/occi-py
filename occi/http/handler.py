@@ -20,6 +20,15 @@ class HttpResponse(object):
         self.headers = headers or []
         self.body = body or ''
 
+class HttpRequestError(Exception):
+    """Exception wrapper for returning a proper HTTP response if an error
+    occurs."""
+    def __init__(self, response=None):
+        assert(isinstance(response, HttpResponse))
+        self.response = response
+    def __str__(self):
+        return repr(self.response)
+
 class HttpResponseCode(object):
     def http_response(self, status, msg=None):
         headers = [('Content-Type', 'text/plain; charset=utf-8')]
@@ -56,39 +65,120 @@ class HandlerBase(object):
     def __init__(self, server):
         self.server = server
 
-class EntityHandler(HandlerBase):
-    def get(self, request, entity_id, user=None):
-        """Retrieve a resource instance."""
+    def _request_init(self, request):
         try:
             parser = get_parser(request.content_type)
             parser.parse(request.headers, request.body)
         except (ParserError, HttpHeaderError) as e:
-            return hrc.BAD_REQUEST(e)
+            return HttpRequestError(hrc.BAD_REQUEST(e))
 
+        # Get renderer
+        try:
+            renderer = get_renderer(parser.accept_types)
+        except RendererError as e:
+            return HttpRequestError(hrc.BAD_REQUEST(e))
+
+        return parser, renderer
+
+    def _get_entity(self, entity_id, user=None):
+        """Load entity object from backend."""
         try:
             entity = self.server.backend.get_entity(entity_id, user=user)
         except Entity.DoesNotExist as e:
-            return hrc.BAD_REQUEST(e)
+            return HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.InvalidOperation as e:
+            return HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return HttpRequestError(hrc.SERVER_ERROR(e))
 
-        renderer = get_renderer(parser.accept_types)
-        obj = DataObject()
-        obj.load_from_entity(entity)
-        renderer.render(obj)
+    def _save_entities(self, entities, id_prefix=None, user=None):
+        """Save Entity objects to backend."""
+        try:
+            id_list = self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
+        except ServerBackend.InvalidOperation as e:
+            return HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return HttpRequestError(hrc.SERVER_ERROR())
+
+    def _delete_entities(self, entity_ids, user=None):
+        """Delete Entity IDs from backend."""
+        try:
+            self.server.backend.delete_entities(entity_ids, user=user)
+        except ServerBackend.InvalidOperation as e:
+            return HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return HttpRequestError(hrc.SERVER_ERROR())
+
+class EntityHandler(HandlerBase):
+    def get(self, request, entity_id, user=None):
+        """Retrieve a resource instance."""
+        try:
+            parser, renderer = self._request_init(request)
+            entity = self._get_entity(entity_id, user=user)
+        except HttpRequestError as e:
+            return e.response
+
+        dao = DataObject()
+        dao.load_from_entity(entity)
+        renderer.render(dao)
 
         return HttpResponse(renderer.headers, rendere.body)
 
     def post(self, request, entity_id, user=None):
-        """action"""
+        """Execute an Action on a resource instance."""
         return hrc.NOT_IMPLEMENTED()
 
     def put(self, request, entity_id, user=None):
-        return hrc.NOT_IMPLEMENTED()
+        """Update an existing resource instance."""
+        # Parse request
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
+
+        # Only a single data object allowed
+        if not parser.objects:
+            return hrc.BAD_REQUEST('No resource instance specified')
+        elif len(parser.objects) > 1:
+            return hrc.BAD_REQUEST('More than one resource instance specified')
+        dao = parser.objects[0]
+
+        # Load entity object from backend
+        try:
+            entity = self._get_entity(entity_id, user=user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Update entity object from request data
+        try:
+            dao.save_to_entity(entity=entity,
+                    category_registry=self.server.registry)
+        except DataObject.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Save the updated entity object
+        try:
+            id_list = self._save_entities([entity], user=user)
+        except HttpRequestError as e:
+            return e.response
+
+        return hrc.ALL_OK()
 
     def delete(self, request, entity_id, user=None):
-        return hrc.NOT_IMPLEMENTED()
+        """Delete a resource instance."""
+        try:
+            parser, renderer = self._request_init(request)
+            self._delete_entities([entity_id], user=None)
+        except HttpRequestError as e:
+            return e.response
+
+        return hrc.ALL_OK()
 
 class CollectionHandler(HandlerBase):
-    def get(self, request, path='', user=None):
+    def get(self, request, path, user=None):
         print path
         return HttpResponse()
 
@@ -102,18 +192,11 @@ class CollectionHandler(HandlerBase):
 
         # Parse request
         try:
-            parser = get_parser(request.content_type)
-            parser.parse(request.headers, request.body)
-        except (ParserError, HttpHeaderError) as e:
-            return hrc.BAD_REQUEST(e)
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
 
-        # Get renderer
-        try:
-            renderer = get_renderer(parser.accept_types)
-        except RendererError as e:
-            return hrc.BAD_REQUEST(e)
-
-        # Any data-objects specified?
+        # Any data-objects submitted?
         if not parser.objects:
             return hrc.BAD_REQUEST('No resource instance(s) specified')
 
@@ -128,10 +211,9 @@ class CollectionHandler(HandlerBase):
 
         # Save all entities using a single backend operation
         try:
-            id_list = self.server.backend.save_entities(entities, id_prefix=path, user=user)
-        except ServerBackend.ServerBackendError as e:
-            print e
-            return hrc.SERVER_ERROR()
+            id_list = self._save_entities(entities, id_prefix=path, user=user)
+        except HttpRequestError as e:
+            return e.response
 
         # Response is a list of locations
         dao_list = []
