@@ -21,14 +21,25 @@ class ServerBackend(object):
         """not too sure about id_prefix filtering, i.e. path"""
         raise NotImplemented('Server Backend must implement filter_entities')
 
-    def save_entity(self, entity, user=None):
-        """
-        :return entity_id: string
-        """
-        raise NotImplemented('Server Backend must implement save_entity')
+    def save_entities(self, entities, id_prefix=None, user=None):
+        """Save a set of entities (resource instances) in a single atomic
+        operation.
 
-    def delete_entity(self, entity_id, user=None):
-        raise NotImplemented('Server Backend must implement delete_entity')
+        :param entities: A list of `Entity` objects to persist.
+        :keyword id_prefix: `Entity` ID prefix suggested by client for new object.
+        :keyword user: The authenticated user.
+        :return: A list IDs of the saved `Entity` objects.
+        """
+        raise NotImplemented('Server Backend must implement save_entities')
+
+    def delete_entities(self, entity_ids, user=None):
+        """Delete a set of entities (resource instances) in a single atomic
+        operation.
+
+        :param entity_ids: A list `Entity` IDs to delete.
+        :keyword user: The authenticated user.
+        """
+        raise NotImplemented('Server Backend must implement delete_entities')
 
 
 class DummyBackend(ServerBackend):
@@ -36,22 +47,20 @@ class DummyBackend(ServerBackend):
 
     >>> backend = DummyBackend()
     >>> from occi.ext.infrastructure import *
-    >>> t = backend.save_entity(ComputeKind.entity_type(ComputeKind))
+    >>> t = backend.save_entities([ComputeKind.entity_type(ComputeKind)])
     >>> compute = ComputeKind.entity_type(ComputeKind)
     >>> compute.set_occi_attributes([('occi.compute.memory', '2.0')])
     >>> storage = StorageKind.entity_type(StorageKind)
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
     >>> link.target = storage ; compute.links.append(link)
-    >>> compute_id = backend.save_entity(compute)
-    >>> storage_id = backend.save_entity(storage)
-    >>> link_id = backend.save_entity(link)
+    >>> compute_id, storage_id, link_id = backend.save_entities([compute, storage, link])
     >>> len(backend.filter_entities())
     4
     >>> len(backend.filter_entities(categories=[ComputeKind]))
     2
     >>> backend.get_entity(compute_id) == compute
     True
-    >>> backend.delete_entity(t)
+    >>> backend.delete_entities(t)
     >>> [entity.id for entity in backend.filter_entities(categories=[ComputeKind])] == [compute_id]
     True
     """
@@ -96,22 +105,23 @@ class DummyBackend(ServerBackend):
 
         return result
 
-    def save_entity(self, entity, user=None):
-        """
-        :return entity_id: string
-        """
-        if not entity.id:
-            loc = entity.get_occi_kind().location or ''
-            entity.id = '%s%s' % (loc, uuid.uuid4())
+    def save_entities(self, entities, id_prefix=None, user=None):
+        id_list = []
+        for entity in entities:
+            if not entity.id:
+                loc = entity.get_occi_kind().location or ''
+                entity.id = '%s%s' % (loc, uuid.uuid4())
 
-        self._db[entity.id] = entity
-        return entity.id
+            self._db[entity.id] = entity
+            id_list.append(entity.id)
+        return id_list
 
-    def delete_entity(self, entity_id, user=None):
-        try:
-            del self._db[entity_id]
-        except KeyError:
-            raise Entity.DoesNotExist(entity_id)
+    def delete_entities(self, entity_ids, user=None):
+        for entity_id in entity_ids:
+            try:
+                del self._db[entity_id]
+            except KeyError:
+                raise Entity.DoesNotExist(entity_id)
 
 
 if __name__ == "__main__":
