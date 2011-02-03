@@ -14,6 +14,11 @@ class OCCIServer(object):
 class ServerBackend(object):
     __metaclass__ = ABCMeta
 
+    def ServerBackendError(Exception):
+        pass
+    def InvalidOperation(ServerBackendError):
+        pass
+
     def get_entity(self, entitiy_id, user=None):
         raise NotImplemented('Server Backend must implement get_entity')
 
