@@ -46,9 +46,9 @@ class Renderer(object):
 class HeaderRenderer(Renderer):
     """Renderer for the text/occi content type.
 
-    >>> from occi.ext.infrastructure import ComputeResourceKind, StorageResourceKind
-    >>> cats = [ComputeResourceKind]
-    >>> links = [LinkRepr(target_location='http://example.com/storage/345', target_categories=[StorageResourceKind])]
+    >>> from occi.ext.infrastructure import ComputeKind, StorageKind
+    >>> cats = [ComputeKind]
+    >>> links = [LinkRepr(target_location='http://example.com/storage/345', target_categories=[StorageKind])]
     >>> attrs = [('occi.compute.memory', '2.0'), ('occi.compute.speed', '2.667')]
     >>> obj = DataObject(location='http://example.com/compute/123', categories=cats, links=links, attributes=attrs)
     >>> r = HeaderRenderer()
