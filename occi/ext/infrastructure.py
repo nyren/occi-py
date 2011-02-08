@@ -1,10 +1,9 @@
 from occi.core import (Category, Kind, Mixin, Resource, Link, ResourceKind,
         LinkKind, Attribute, IntAttribute, FloatAttribute)
 
-ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Start Compute Resource')
-ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Stop Compute Resource')
+#
+# Compute Kind
+# ============
 
 ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Compute Resource',
@@ -21,6 +20,45 @@ ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         )
 )
 
+ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Start Compute Resource')
+ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Stop Compute Resource')
+
+#
+# Network Kind
+# ============
+
+NetworkKind = Kind('network', 'http://schemas.ogf.org/occi/infrastructure#',
+        title='Network Resource',
+        related=ResourceKind,
+        entity_type=Resource,
+        location='network/',
+        attributes=(
+            IntAttribute('occi.network.vlan', required=False, mutable=True),
+            Attribute('occi.network.vlan', required=False, mutable=True),
+            Attribute('occi.network.state', required=False, mutable=False),
+        )
+)
+
+#
+# IPNetwork Mixin
+# ===============
+
+NetworkKind = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure#',
+        title='IPNetworking Mixin',
+        location='ipnetwork/',
+        attributes=(
+            Attribute('occi.network.address', required=False, mutable=True),
+            Attribute('occi.network.gateway', required=False, mutable=True),
+            Attribute('occi.network.allocation', required=False, mutable=True),
+        )
+)
+
+#
+# Storage Kind
+# ============
+
 StorageKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Storage Resource',
         related=ResourceKind,
@@ -32,8 +70,41 @@ StorageKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
         )
 )
 
+#
+# NetworkInterface Kind
+# =====================
+
+NetworkInterfaceKind = Kind('networkinterface', 'http://schemas.ogf.org/occi/infrastructure#',
+        title='NetworkInterface Link',
+        related=LinkKind,
+        entity_type=Link,
+        location='link/networkinterface/',
+        attributes=(
+            Attribute('occi.networkinterface.interface', required=True, mutable=True),
+            Attribute('occi.networkinterface.mac', required=True, mutable=True),
+            Attribute('occi.networkinterface.state', required=False, mutable=False),
+        )
+)
+
+#
+# IPNetworkInterface Mixin
+# ========================
+
+NetworkInterfaceKind = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/occi/infrastructure#',
+        title='IPNetworkInterface Link',
+        location='link/ipnetworkinterface/',
+        attributes=(
+            Attribute('occi.networkinterface.address', required=True, mutable=True),
+            Attribute('occi.networkinterface.gateway', required=False, mutable=True),
+            Attribute('occi.networkinterface.allocation', required=True, mutable=True),
+        )
+)
+#
+# Storage Kind
+# ============
+
 StorageLinkKind = Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#',
-        title='Storage Link', 
+        title='Storage Link',
         related=LinkKind,
         entity_type=Link,
         location='link/storage/',
