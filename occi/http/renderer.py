@@ -15,39 +15,43 @@ def register_renderer(content_type, renderer):
 def unregister_renderer(content_type):
     del _renderers[content_type]
 
-def get_renderer(accept_header=None):
+def get_renderer(accept_types=None):
     """Return a renderer matching the list of accepted content-types.
 
-    >>> p = get_renderer('text/occi')
+    :keyword accept_types: List of acceptable content types, i.e. the result of
+        _parsing_ an Accept header.
+
+    >>> p = get_renderer(['text/occi'])
     >>> isinstance(p, HeaderRenderer)
     True
-    >>> p = get_renderer('text/plain; q=0.1 ')
+    >>> p = get_renderer(['text/plain'])
     >>> isinstance(p, TextPlainRenderer)
     True
     >>> p = get_renderer()
     >>> isinstance(p, HeaderRenderer)
     True
-    >>> p = get_renderer('application/not-supported')
+    >>> p = get_renderer(['text/html', '*/*'])
+    >>> isinstance(p, TextRenderer)
+    True
+    >>> p = get_renderer(['text/html', 'image/jpeg', 'image/png'])
     Traceback (most recent call last):
         File "renderer.py", line 41, in renderer
-    RendererError: "application/not-supported": No renderer found for requested content types
+    RendererError: No renderer found for requested content types
     """
     r = None
-    if not accept_header:
+    if not accept_types:
         r = _renderers.get(None)
     else:
-        h = HttpWebHeadersBase()
-        h.parse(accept_header or '')
-        for c_type, c_params in h.all():
+        for content_type in accept_types:
             try:
-                r = _renderers[c_type]
+                r = _renderers[content_type]
             except KeyError:
                 pass
             else:
                 break
 
     if not r:
-        raise RendererError('"%s": No renderer found for requested content types' % accept_header)
+        raise RendererError('No renderer found for requested content types')
     return r()
 
 class Renderer(object):
