@@ -147,17 +147,88 @@ class HeaderRenderer(Renderer):
                 raise RendererError('DataObject has no location')
             self.headers.append(('X-OCCI-Location', obj.location))
 
-class TextPlainRenderer(Renderer):
-    pass
+class TextPlainRenderer(HeaderRenderer):
+    """Renderer for the text/plain content type.
+
+    >>> from occi.ext.infrastructure import ComputeKind, StorageKind
+    >>> cats = [ComputeKind]
+    >>> links = [LinkRepr(target_location='http://example.com/storage/345', target_categories=[StorageKind])]
+    >>> attrs = [('occi.compute.memory', '2.0'), ('occi.compute.speed', '2.667')]
+    >>> obj = DataObject(location='http://example.com/compute/123', categories=cats, links=links, attributes=attrs)
+    >>> r = TextPlainRenderer()
+    >>> r.render([obj])
+    >>> r.body
+    'X-OCCI-Location: http://example.com/compute/123\\r\\n'
+    >>> r = TextPlainRenderer()
+    >>> r.render(obj)
+    >>> r.body
+    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nLink: <http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
+
+    """
+    def render(self, objects):
+        super(TextPlainRenderer, self).render(objects)
+        for name, value in self.headers:
+            self.body += '%s: %s\r\n' % (name, value)
+        self.headers = []
 
 class TextURIListRenderer(Renderer):
-    pass
+    """Renderer for the text/uri-list content type.
+
+    This renderer always returns URIs, even if just one object is rendered.
+
+    >>> from occi.ext.infrastructure import ComputeKind, StorageKind
+    >>> objs = []
+    >>> objs.append(DataObject(location='/compute/123', categories=[ComputeKind]))
+    >>> objs.append(DataObject(location='/compute/234', categories=[ComputeKind]))
+    >>> objs.append(DataObject(location='/storage/345', categories=[StorageKind]))
+    >>> r = TextURIListRenderer()
+    >>> r.render(objs)
+    >>> r.headers
+    []
+    >>> r.body
+    '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
+    >>> r = TextURIListRenderer()
+    >>> r.render(objs[1])
+    >>> r.body
+    '/compute/234\\r\\n'
+    """
+    def render(self, objects):
+        if not isinstance(objects, list) and not isinstance(objects, tuple):
+            objects = [objects]
+        for obj in objects:
+            if obj.location:
+                self.body += '%s\r\n' % obj.location
 
 class TextRenderer(Renderer):
     """The default renderer. Uses text/plain for single object rendering and
     text/uri-list for multiple objects rendering.
+
+    >>> from occi.ext.infrastructure import ComputeKind, StorageKind
+    >>> objs = []
+    >>> attrs = [('occi.compute.memory', '2.0'), ('occi.compute.speed', '2.667')]
+    >>> objs.append(DataObject(location='/compute/123', categories=[ComputeKind]))
+    >>> objs.append(DataObject(location='/compute/234', categories=[ComputeKind], attributes=attrs))
+    >>> objs.append(DataObject(location='/storage/345', categories=[StorageKind]))
+    >>> r = TextRenderer()
+    >>> r.render(objs)
+    >>> r.headers
+    []
+    >>> r.body
+    '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
+    >>> r = TextRenderer()
+    >>> r.render(objs[1])
+    >>> r.body
+    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
     """
-    pass
+    def render(self, objects):
+        if isinstance(objects, list) or isinstance(objects, tuple):
+            r = TextURIListRenderer()
+            r.render(objects)
+            self.body = r.body
+        else:
+            r = TextPlainRenderer()
+            r.render(objects)
+            self.body = r.body
 
 # Register required renderers
 register_renderer(None, HeaderRenderer)
