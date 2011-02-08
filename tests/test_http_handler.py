@@ -55,27 +55,28 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_get(self):
         response = self._get()
         self.assertEqual(response.body, '')
-        self.assertEqual(len(response.headers), 3)
+        self.assertEqual(len(response.headers), 4)
 
     def test_get__text_occi(self):
         response = self._get('text/occi')
         self.assertEqual(response.body, '')
-        self.assertEqual(len(response.headers), 3)
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+        self.assertEqual(len(response.headers), 4)
 
     def test_get__text_plain(self):
         response = self._get('text/plain')
-        self.assertEqual(len(response.headers), 0)
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         self.assertNotEqual(response.body, '')
 
     def test_get__text_urilist(self):
         response = self._get('text/uri-list')
-        self.assertEqual(len(response.headers), 0)
-        self.assertNotEqual(response.body, '')
+        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+        self.assertEqual(response.body[:44], self.compute_id[0])
 
     def test_get__text_any(self):
-        response = self._get('text/*, */*')
-        self.assertEqual(len(response.headers), 0)
-        self.assertNotEqual(response.body, '')
+        response = self._get('text/*, */*;q=0.1')
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.body[:18], 'Category: compute;')
 
     def test_post(self):
         pass
