@@ -70,13 +70,13 @@ class HandlerBase(object):
             parser = get_parser(request.content_type)
             parser.parse(request.headers, request.body)
         except (ParserError, HttpHeaderError) as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
 
         # Get renderer
         try:
             renderer = get_renderer(parser.accept_types)
         except RendererError as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
 
         return parser, renderer
 
@@ -85,32 +85,32 @@ class HandlerBase(object):
         try:
             return self.server.backend.get_entity(entity_id, user=user)
         except Entity.DoesNotExist as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.InvalidOperation as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
             print e
-            return HttpRequestError(hrc.SERVER_ERROR(e))
+            raise HttpRequestError(hrc.SERVER_ERROR(e))
 
     def _save_entities(self, entities, id_prefix=None, user=None):
         """Save Entity objects to backend."""
         try:
             return self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
         except ServerBackend.InvalidOperation as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
             print e
-            return HttpRequestError(hrc.SERVER_ERROR())
+            raise HttpRequestError(hrc.SERVER_ERROR())
 
     def _delete_entities(self, entity_ids, user=None):
         """Delete Entity IDs from backend."""
         try:
             return self.server.backend.delete_entities(entity_ids, user=user)
         except ServerBackend.InvalidOperation as e:
-            return HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
             print e
-            return HttpRequestError(hrc.SERVER_ERROR())
+            raise HttpRequestError(hrc.SERVER_ERROR())
 
 class EntityHandler(HandlerBase):
     def get(self, request, entity_id):
