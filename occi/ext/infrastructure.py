@@ -45,7 +45,7 @@ NetworkKind = Kind('network', 'http://schemas.ogf.org/occi/infrastructure#',
 # IPNetwork Mixin
 # ===============
 
-NetworkKind = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure#',
+IPNetworkMixin = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure#',
         title='IPNetworking Mixin',
         location='ipnetwork/',
         attributes=(
@@ -90,7 +90,7 @@ NetworkInterfaceKind = Kind('networkinterface', 'http://schemas.ogf.org/occi/inf
 # IPNetworkInterface Mixin
 # ========================
 
-NetworkInterfaceKind = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/occi/infrastructure#',
+IPNetworkInterfaceMixin = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/occi/infrastructure#',
         title='IPNetworkInterface Link',
         location='link/ipnetworkinterface/',
         attributes=(
