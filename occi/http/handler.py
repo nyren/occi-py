@@ -83,7 +83,7 @@ class HandlerBase(object):
     def _get_entity(self, entity_id, user=None):
         """Load entity object from backend."""
         try:
-            entity = self.server.backend.get_entity(entity_id, user=user)
+            return self.server.backend.get_entity(entity_id, user=user)
         except Entity.DoesNotExist as e:
             return HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.InvalidOperation as e:
@@ -95,7 +95,7 @@ class HandlerBase(object):
     def _save_entities(self, entities, id_prefix=None, user=None):
         """Save Entity objects to backend."""
         try:
-            id_list = self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
+            return self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
         except ServerBackend.InvalidOperation as e:
             return HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
@@ -105,7 +105,7 @@ class HandlerBase(object):
     def _delete_entities(self, entity_ids, user=None):
         """Delete Entity IDs from backend."""
         try:
-            self.server.backend.delete_entities(entity_ids, user=user)
+            return self.server.backend.delete_entities(entity_ids, user=user)
         except ServerBackend.InvalidOperation as e:
             return HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
@@ -113,11 +113,11 @@ class HandlerBase(object):
             return HttpRequestError(hrc.SERVER_ERROR())
 
 class EntityHandler(HandlerBase):
-    def get(self, request, entity_id, user=None):
+    def get(self, request, entity_id):
         """Retrieve a resource instance."""
         try:
             parser, renderer = self._request_init(request)
-            entity = self._get_entity(entity_id, user=user)
+            entity = self._get_entity(entity_id, user=request.user)
         except HttpRequestError as e:
             return e.response
 
@@ -125,13 +125,13 @@ class EntityHandler(HandlerBase):
         dao.load_from_entity(entity)
         renderer.render(dao)
 
-        return HttpResponse(renderer.headers, rendere.body)
+        return HttpResponse(renderer.headers, renderer.body)
 
-    def post(self, request, entity_id, user=None):
+    def post(self, request, entity_id):
         """Execute an Action on a resource instance."""
         return hrc.NOT_IMPLEMENTED()
 
-    def put(self, request, entity_id, user=None):
+    def put(self, request, entity_id):
         """Update an existing resource instance."""
         # Parse request
         try:
@@ -167,22 +167,22 @@ class EntityHandler(HandlerBase):
 
         return hrc.ALL_OK()
 
-    def delete(self, request, entity_id, user=None):
+    def delete(self, request, entity_id):
         """Delete a resource instance."""
         try:
             parser, renderer = self._request_init(request)
-            self._delete_entities([entity_id], user=None)
+            self._delete_entities([entity_id])
         except HttpRequestError as e:
             return e.response
 
         return hrc.ALL_OK()
 
 class CollectionHandler(HandlerBase):
-    def get(self, request, path, user=None):
+    def get(self, request, path):
         print path
         return HttpResponse()
 
-    def post(self, request, path, user=None):
+    def post(self, request, path):
         """Create new resource instance(s) OR execute an action on the specified
         collection.
         """
@@ -228,26 +228,26 @@ class CollectionHandler(HandlerBase):
 
         return HttpResponse(headers, body)
 
-    def _collection_action(self, request, path, user=None):
+    def _collection_action(self, request, path):
         return hrc.NOT_IMPLEMENTED()
 
-    def put(self, request, path, user=None):
+    def put(self, request, path):
         """Add resource instance to Mixin collection"""
         return hrc.NOT_IMPLEMENTED()
 
-    def delete(self, request, path, user=None):
+    def delete(self, request, path):
         """Remove resource instance from Mixin collection"""
         return hrc.NOT_IMPLEMENTED()
 
 class DiscoveryHandler(HandlerBase):
-    def get(self, request, user=None):
+    def get(self, request):
         """list all Categories"""
         return HttpResponse()
 
-    def put(self, request, user=None):
+    def put(self, request):
         """create custom Mixin"""
         pass
 
-    def delete(self, request, user=None):
+    def delete(self, request):
         """delete custom Mixin"""
         pass
