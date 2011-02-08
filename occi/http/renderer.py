@@ -84,16 +84,17 @@ class HeaderRenderer(Renderer):
     >>> r = HeaderRenderer()
     >>> r.render([obj])
     >>> r.headers
-    [('X-OCCI-Location', 'http://example.com/compute/123')]
+    [('Content-Type', 'text/occi'), ('X-OCCI-Location', 'http://example.com/compute/123')]
     >>> r.body
     ''
     >>> r = HeaderRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
+    [('Content-Type', 'text/occi'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
 
     """
     def render(self, objects):
+        self.headers.append(('Content-Type', 'text/occi'))
         if isinstance(objects, list) or isinstance(objects, tuple):
             self._render_obj_list(objects)
         else:
@@ -157,19 +158,24 @@ class TextPlainRenderer(HeaderRenderer):
     >>> obj = DataObject(location='http://example.com/compute/123', categories=cats, links=links, attributes=attrs)
     >>> r = TextPlainRenderer()
     >>> r.render([obj])
+    >>> r.headers
+    [('Content-Type', 'text/plain')]
     >>> r.body
     'X-OCCI-Location: http://example.com/compute/123\\r\\n'
     >>> r = TextPlainRenderer()
     >>> r.render(obj)
+    >>> r.headers
+    [('Content-Type', 'text/plain')]
     >>> r.body
     'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nLink: <http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
 
     """
     def render(self, objects):
         super(TextPlainRenderer, self).render(objects)
-        for name, value in self.headers:
+        for name, value in self.headers[1:]:
             self.body += '%s: %s\r\n' % (name, value)
         self.headers = []
+        self.headers.append(('Content-Type', 'text/plain'))
 
 class TextURIListRenderer(Renderer):
     """Renderer for the text/uri-list content type.
@@ -184,15 +190,18 @@ class TextURIListRenderer(Renderer):
     >>> r = TextURIListRenderer()
     >>> r.render(objs)
     >>> r.headers
-    []
+    [('Content-Type', 'text/uri-list')]
     >>> r.body
     '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
     >>> r = TextURIListRenderer()
     >>> r.render(objs[1])
+    >>> r.headers
+    [('Content-Type', 'text/uri-list')]
     >>> r.body
     '/compute/234\\r\\n'
     """
     def render(self, objects):
+        self.headers.append(('Content-Type', 'text/uri-list'))
         if not isinstance(objects, list) and not isinstance(objects, tuple):
             objects = [objects]
         for obj in objects:
@@ -212,23 +221,24 @@ class TextRenderer(Renderer):
     >>> r = TextRenderer()
     >>> r.render(objs)
     >>> r.headers
-    []
+    [('Content-Type', 'text/uri-list')]
     >>> r.body
     '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
     >>> r = TextRenderer()
     >>> r.render(objs[1])
+    >>> r.headers
+    [('Content-Type', 'text/plain')]
     >>> r.body
     'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
     """
     def render(self, objects):
         if isinstance(objects, list) or isinstance(objects, tuple):
             r = TextURIListRenderer()
-            r.render(objects)
-            self.body = r.body
         else:
             r = TextPlainRenderer()
-            r.render(objects)
-            self.body = r.body
+        r.render(objects)
+        self.headers = r.headers
+        self.body = r.body
 
 # Register required renderers
 register_renderer(None, HeaderRenderer)
