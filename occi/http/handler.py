@@ -92,6 +92,20 @@ class HandlerBase(object):
             print e
             raise HttpRequestError(hrc.SERVER_ERROR(e))
 
+    def _filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
+        """Filter entity objects from backend."""
+        try:
+            return self.server.backend.filter_entities(
+                    categories=categories, attributes=attributes,
+                    id_prefix=id_prefix, user=user)
+        except Entity.DoesNotExist as e:
+            raise HttpRequestError(hrc.NOT_FOUND(e))
+        except ServerBackend.InvalidOperation as e:
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.ServerBackendError as e:
+            print e
+            raise HttpRequestError(hrc.SERVER_ERROR(e))
+
     def _save_entities(self, entities, id_prefix=None, user=None):
         """Save Entity objects to backend."""
         try:
@@ -183,8 +197,52 @@ class EntityHandler(HandlerBase):
 
 class CollectionHandler(HandlerBase):
     def get(self, request, path):
-        print path
-        return HttpResponse()
+        """Get the collection of resource instances under the specified path."""
+        # Parse request
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
+
+        # Filtering parameters
+        categories = []
+        attributes = []
+        id_prefix = None
+
+        # Can path be mapped to a Kind/Mixin location?
+        t = self.server.registry.lookup_location(path)
+        if t:
+            categories.append(t)
+        else:
+            id_prefix = path.lstrip('/')
+
+        # Category and attribute filters
+        if parser.objects:
+            dao = parser.objects[0]
+            for category in dao.categories:
+                try:
+                    categories.append(self.server.registry.lookup_id(category))
+                except Category.DoesNotExist as e:
+                    return hrc.BAD_REQUEST(e)
+            # FIXME - what about converting value to indicated type
+            attributes = dao.attributes
+
+        # Retrieve resource instances from backend
+        try:
+            entities = self._filter_entities(categories=categories, attributes=attributes,
+                    id_prefix=id_prefix, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Render response
+        objects = []
+        for entity in entities:
+            dao = DataObject()
+            dao.load_from_entity(entity)
+            objects.append(dao)
+        renderer.render(objects)
+
+        return HttpResponse(renderer.headers, renderer.body)
 
     def post(self, request, path):
         """Create new resource instance(s) OR execute an action on the specified

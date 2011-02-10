@@ -1,5 +1,9 @@
 import uuid
 from abc import ABCMeta
+try:
+    from ordereddict import OrderedDict
+except ImportError:
+    OrderedDict = dict
 
 from occi.core import Entity, CategoryRegistry
 
@@ -63,6 +67,8 @@ class DummyBackend(ServerBackend):
     4
     >>> len(backend.filter_entities(categories=[ComputeKind]))
     2
+    >>> len(backend.filter_entities(categories=[ComputeKind], attributes=[('occi.compute.memory', 2.0)]))
+    1
     >>> backend.get_entity(compute_id) == compute
     True
     >>> backend.delete_entities(t)
@@ -71,7 +77,7 @@ class DummyBackend(ServerBackend):
     """
 
     def __init__(self):
-        self._db = {}
+        self._db = OrderedDict()
 
     def get_entity(self, entity_id, user=None):
         try:
@@ -101,7 +107,7 @@ class DummyBackend(ServerBackend):
             if categories and attributes:
                 for name, value in attributes:
                     t = entity.get_occi_attribute(name)
-                    if t != value:
+                    if str(t) != str(value):    # FIXME - this implies "2.0" == 2.0
                         skip = True
                         break
             if skip: continue

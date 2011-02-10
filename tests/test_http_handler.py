@@ -38,6 +38,24 @@ class HandlerTestCaseBase(unittest.TestCase):
 
         self.compute_id = server.backend.save_entities(entities)
 
+    def _verify_headers(self, response_headers=[], expected_headers=[]):
+        i = 0
+        while True:
+            try:
+                h_response = response_headers[i]
+            except IndexError:
+                h_response = ()
+            try:
+                h_expected = expected_headers[i]
+            except IndexError:
+                h_expected = ()
+
+            if not h_response and not h_expected:
+                break
+
+            self.assertEqual(h_response, h_expected)
+            i += 1
+
     def _verify_body(self, response_body='', expected_body=[]):
         i = 0
         for line in response_body.split('\r\n'):
@@ -78,8 +96,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
 
     def test_get(self):
         response = self._get()
-        self.assertEqual(response.body, '')
-        self.assertEqual(len(response.headers), 4)
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/plain'))
 
     def test_get__text_occi(self):
         response = self._get(accept_header='text/occi')
@@ -160,3 +177,74 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request = HttpRequest([], '')
         response = self.handler.delete(request, 'blah/not/found')
         self.assertEqual(response.status, 404)
+
+class CollectionHandlerTestCase(HandlerTestCaseBase):
+    def setUp(self):
+        super(CollectionHandlerTestCase, self).setUp()
+        self.handler = CollectionHandler(self.server)
+
+    def _get(self, path='', headers=[], body=''):
+        request = HttpRequest(headers, body)
+        response = self.handler.get(request, path)
+        return response
+
+    def test_get_all_default(self):
+        response = self._get('')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+
+    def test_get_all_text_occi(self):
+        response = self._get('', headers=[('accept', 'text/occi')])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+
+        expected_headers = []
+        for entity_id in self.compute_id:
+            expected_headers.append(('X-OCCI-Location', entity_id))
+        self._verify_headers(response.headers[1:], expected_headers)
+
+    def test_get_all_text_any(self):
+        response = self._get('', headers=[('accept', 'text/*')])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+
+        expected_body = []
+        for entity_id in self.compute_id:
+            expected_body.append(entity_id)
+        self._verify_body(response.body, expected_body)
+
+    def test_get_all_text_plain(self):
+        response = self._get('', headers=[('accept', 'text/plain')])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+
+        expected_body = []
+        for entity_id in self.compute_id:
+            expected_body.append('X-OCCI-Location: %s' % entity_id)
+        self._verify_body(response.body, expected_body)
+
+    def test_get_filter_compute_location(self):
+        response = self._get(ComputeKind.location, headers=[('accept', 'text/plain')])
+        expected_body = []
+        for entity_id in self.compute_id:
+            expected_body.append('X-OCCI-Location: %s' % entity_id)
+        self._verify_body(response.body, expected_body)
+
+    def test_get_filter_compute_category(self):
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        response = self._get('', headers=request_headers)
+        expected_body = []
+        for entity_id in self.compute_id:
+            expected_body.append('X-OCCI-Location: %s' % entity_id)
+        self._verify_body(response.body, expected_body)
+
+    def test_get_filter_compute_attr(self):
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
+        response = self._get('', headers=request_headers)
+
+        expected_body = []
+        expected_body.append('X-OCCI-Location: %s' % self.compute_id[1])
+        self._verify_body(response.body, expected_body)

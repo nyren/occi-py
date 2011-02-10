@@ -28,7 +28,7 @@ def get_renderer(accept_types=None):
     >>> isinstance(p, TextPlainRenderer)
     True
     >>> p = get_renderer()
-    >>> isinstance(p, HeaderRenderer)
+    >>> isinstance(p, TextRenderer)
     True
     >>> p = get_renderer(['text/html', '*/*'])
     >>> isinstance(p, TextRenderer)
@@ -245,7 +245,7 @@ class TextRenderer(Renderer):
         self.body = r.body
 
 # Register required renderers
-register_renderer(None, HeaderRenderer)
+register_renderer(None, TextRenderer)
 register_renderer('text/occi', HeaderRenderer)
 register_renderer('text/plain', TextPlainRenderer)
 register_renderer('text/uri-list', TextURIListRenderer)
