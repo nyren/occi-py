@@ -85,7 +85,7 @@ class HandlerBase(object):
         try:
             return self.server.backend.get_entity(entity_id, user=user)
         except Entity.DoesNotExist as e:
-            raise HttpRequestError(hrc.BAD_REQUEST(e))
+            raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
             raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
@@ -96,6 +96,8 @@ class HandlerBase(object):
         """Save Entity objects to backend."""
         try:
             return self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
+        except Entity.DoesNotExist as e:
+            raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
             raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
@@ -106,6 +108,8 @@ class HandlerBase(object):
         """Delete Entity IDs from backend."""
         try:
             return self.server.backend.delete_entities(entity_ids, user=user)
+        except Entity.DoesNotExist as e:
+            raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
             raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
@@ -148,7 +152,7 @@ class EntityHandler(HandlerBase):
 
         # Load entity object from backend
         try:
-            entity = self._get_entity(entity_id, user=user)
+            entity = self._get_entity(entity_id, user=request.user)
         except HttpRequestError as e:
             return e.response
 
@@ -161,7 +165,7 @@ class EntityHandler(HandlerBase):
 
         # Save the updated entity object
         try:
-            id_list = self._save_entities([entity], user=user)
+            id_list = self._save_entities([entity], user=request.user)
         except HttpRequestError as e:
             return e.response
 
