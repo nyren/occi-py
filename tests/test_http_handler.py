@@ -24,7 +24,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         server.registry.register(IPNetworkInterfaceMixin)
         server.registry.register(StorageLinkKind)
 
-        # Pre-populate backend
+        # Pre-populate backend: Compute resources
         entities = []
         e = ComputeKind.entity_type(ComputeKind)
         attrs = [('title', 'A "little" VM'), ('occi.compute.memory', 5.0/3)]
@@ -35,8 +35,37 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs = [('title', 'Another " VM'), ('occi.compute.speed', '2.33'), ('occi.compute.memory', '4.0')]
         e.set_occi_attributes(attrs)
         entities.append(e)
-
+        #
         self.compute_id = server.backend.save_entities(entities)
+
+        # Pre-populate backend: Network resources
+        entities = []
+        e = NetworkKind.entity_type(NetworkKind)
+        e.add_occi_mixin(IPNetworkMixin)
+        attrs = [('title', 'Internet'), ('occi.network.state', 'active')]
+        attrs.append(('occi.network.address', '11.12.0.0/16'))
+        attrs.append(('occi.network.gateway', '11.12.0.1'))
+        attrs.append(('occi.network.allocation', 'static'))
+        e.set_occi_attributes(attrs, validate=False)
+        entities.append(e)
+        #
+        e = NetworkKind.entity_type(NetworkKind)
+        attrs = [('title', 'Private VLAN'), ('occi.network.state', 'active')]
+        attrs.append(('occi.network.vlan', 123))
+        e.set_occi_attributes(attrs, validate=False)
+        entities.append(e)
+        #
+        self.network_id = server.backend.save_entities(entities)
+
+        # Pre-populate backend: Storage resources
+        entities = []
+        e = StorageKind.entity_type(NetworkKind)
+        attrs = [('title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
+        entities.append(e)
+        #
+        self.storage_id = server.backend.save_entities(entities)
+
+        self.entity_ids = self.compute_id + self.network_id + self.storage_id
 
     def _verify_headers(self, response_headers=[], expected_headers=[]):
         i = 0
@@ -199,7 +228,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
 
         expected_headers = []
-        for entity_id in self.compute_id:
+        for entity_id in self.entity_ids:
             expected_headers.append(('X-OCCI-Location', entity_id))
         self._verify_headers(response.headers[1:], expected_headers)
 
@@ -209,7 +238,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
 
         expected_body = []
-        for entity_id in self.compute_id:
+        for entity_id in self.entity_ids:
             expected_body.append(entity_id)
         self._verify_body(response.body, expected_body)
 
@@ -219,7 +248,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
 
         expected_body = []
-        for entity_id in self.compute_id:
+        for entity_id in self.entity_ids:
             expected_body.append('X-OCCI-Location: %s' % entity_id)
         self._verify_body(response.body, expected_body)
 
