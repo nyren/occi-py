@@ -119,7 +119,7 @@ class CategoryRegistry(object):
       File "core.py", line 131, in register
         raise Category.Invalid('%s: location path already defined' % category.location)
     Invalid: compute/: location path already defined
-    >>> reg.lookup_id(str(ComputeKind))
+    >>> reg.lookup_id(ComputeKind)
     Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')
     >>> reg.lookup_location('storage/')
     Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')
@@ -158,7 +158,7 @@ class CategoryRegistry(object):
 
     def lookup_id(self, identifier):
         try:
-            return self._categories[identifier]
+            return self._categories[str(identifier)]
         except KeyError:
             raise Category.DoesNotExist('"%s": Category does not exist' % identifier)
 
