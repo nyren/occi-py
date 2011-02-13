@@ -170,9 +170,11 @@ class CategoryRegistry(object):
         return self._categories.values()
 
 class ExtCategory(Category):
-    def __init__(self, *args, **kwargs):
-        super(ExtCategory, self).__init__(*args, **kwargs)
+    def __init__(self, term, scheme, actions=None, location=None, **kwargs):
+        super(ExtCategory, self).__init__(term, scheme, **kwargs)
         self._location = None
+        self.actions = actions or ()
+        self.location = location
 
     def get_location(self):
         return self._location
@@ -193,11 +195,9 @@ class Kind(ExtCategory):
 
     A Kind instance uniquely identifies an Entity sub-type.
     """
-    def __init__(self, term, scheme, actions=None, entity_type=None, location=None, **kwargs):
+    def __init__(self, term, scheme, entity_type=None, **kwargs):
         super(Kind, self).__init__(term, scheme, **kwargs)
-        self.actions = actions
         self.entity_type = entity_type or Entity
-        self.location = location
 
         if self.related and not isinstance(self.related, Kind):
             raise Category.Invalid("Kind instance can only be related to other Kind instances")
@@ -209,10 +209,8 @@ class Mixin(ExtCategory):
     an existing resource instance. A 'resource instance' is an instance of a
     sub-type of Entity.
     """
-    def __init__(self, term, scheme, actions=None, location=None, **kwargs):
+    def __init__(self, term, scheme, **kwargs):
         super(Mixin, self).__init__(term, scheme, **kwargs)
-        self.actions = actions
-        self.location = location
 
         if self.related and not isinstance(self.related, Mixin):
             raise Category.Invalid("Mixin instance can only be related to other Mixin instances")
@@ -220,9 +218,91 @@ class Mixin(ExtCategory):
 class Action(object):
     """The OCCI Action type.
 
-    An Action represents an invocable operation on a resource instance.
+    An instance of Action represents a operation (on a resource instance) to be
+    invoked. An Action instance consist of its defining Category and a set of
+    attribute (parameter) values. The available parameters are defined by the Category.
+
+    >>> startAction = Category('start', 'http://example.com/occi/foo/action#', attributes=[Attribute('example.com.bar', required=True)])
+    >>> action = Action(startAction, parameters=[('example.com.bar', 'foobar')])
+    >>> action.parameters
+    [('example.com.bar', 'foobar')]
+    >>> action = Action(startAction, parameters=[('example.com.unknown', 'blah'), ('example.com.bar', 'foobar')])
+    Traceback (most recent call last):
+    UnknownParameter: "example.com.unknown": Unknown parameter
+    >>> action = Action(startAction, parameters=[('example.com.unknown', 'blah')])
+    Traceback (most recent call last):
+    RequiredParameter: "example.com.bar": Required parameter
     """
-    pass
+
+    class ActionError(Exception):
+        def __init__(self, item=None, message=None):
+            self.item = item
+            self.message = message
+        def __str__(self):
+            s = ''
+            if self.item:
+                s += '"%s": ' % self.item
+            if hasattr(self, '_name'):
+                s += self._name
+            else:
+                s += self.__class__.__name__
+            if self.message:
+                s += ': %s' % self.message
+            return s
+    class UnknownParameter(ActionError):
+        _name = 'Unknown parameter'
+    class RequiredParameter(ActionError):
+        _name = 'Required parameter'
+
+    def __init__(self, category, parameters=None):
+        """Setup Action instance given its defining Category and a list of
+        parameter values.
+
+        :param category: Category instance defining the Action.
+        :keyword parameters: List of parameter name-value pairs.
+        """
+        self._occi_category = category
+        self._occi_parameters = {}
+
+        # Load supplied parameters into a dictionary
+        param_dict = {}
+        for param, value in parameters or ():
+            if param in param_dict:
+                raise self.DuplicateAttribute(param)
+            param_dict[param] = value
+
+        # Setup the parameters for the Action instance
+        for attribute in self._occi_category.attributes:
+            try:
+                value = param_dict[attribute.name]
+                del param_dict[attribute.name]
+            except KeyError:
+                pass
+            else:
+                self._occi_parameters[attribute.name] = attribute.from_string(value)
+
+            # Check required parameters
+            if attribute.required and attribute.name not in self._occi_parameters:
+                raise self.RequiredParameter(attribute.name)
+
+        # Verify all supplied attributes have been handled
+        if param_dict:
+            raise self.UnknownParameter(param_dict.keys()[0])
+
+    def _get_occi_category(self):
+        return self._occi_category
+    category = property(_get_occi_category)
+
+    def _get_occi_parameters(self):
+        params = []
+        for attribute in self._occi_category.attributes:
+            try:
+                params.append((attribute.name, self._occi_parameters[attribute.name]))
+            except KeyError:
+                pass
+        return params
+    parameters = property(_get_occi_parameters)
+
 
 class Entity(object):
     """The OCCI Entity (abstract) type.
@@ -269,15 +349,28 @@ class Entity(object):
         self._occi_kind = None
         self._occi_mixins = {}
         self._occi_attributes = {}
+        self._occi_actions_available = {}
+        self._occi_actions_applicable = ()
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
             raise self.InvalidCategory(kind, 'not a valid Kind instance')
         self._occi_kind = kind
+        self._add_actions_available(kind.actions)
 
         # Add additional Mixins
         for mixin in mixins:
             self.add_occi_mixin(mixin)
+
+    def _add_actions_available(self, actions=[]):
+        for category in actions:
+            cat_id = str(category)
+            self._occi_actions_available[cat_id] = category
+
+    def _remove_actions_available(self, actions=[]):
+        for category in actions:
+            cat_id = str(category)
+            self._occi_actions_available.pop(cat_id, None)
 
     def get_occi_kind(self):
         return self._occi_kind
@@ -291,10 +384,12 @@ class Entity(object):
 
         # Save mixin
         self._occi_mixins[cat_id] = mixin
+        self._add_actions_available(mixin.actions)
 
     def remove_occi_mixin(self, mixin):
         try:
-            del self._occi_mixins[str(mixin)]
+            mixin = self._occi_mixins.pop(str(mixin))
+            self._remove_actions_available(mixin.actions)
         except KeyError:
             raise self.UnknownCategory(mixin, 'not found')
 
@@ -387,6 +482,39 @@ class Entity(object):
         # Verify all supplied attributes have been handled
         if attr_dict:
             raise self.UnknownAttribute(attr_dict.keys()[0])
+
+    def get_occi_actions(self):
+        """Return a list of Category instances which define the Actions
+        currently applicable to this resource instance.
+        """
+        return [self._occi_actions_available[cat_id] for cat_id in self._occi_actions_applicable]
+
+    def set_occi_actions(self, actions=None):
+        """Define the set of actions currently applicable to this resource
+        instance.
+
+        :keyword actions: List of Category instances.
+
+        >>> startAction = Category('start', 'http://example.com/occi/foo/action#')
+        >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)], actions=[startAction])
+        >>> entity = Entity(fooKind)
+        >>> entity.get_occi_actions()
+        []
+        >>> entity.set_occi_actions([startAction])
+        >>> entity.get_occi_actions()
+        [Category('start', 'http://example.com/occi/foo/action#')]
+        >>> stopAction = Category('stop', 'http://example.com/occi/foo/action#')
+        >>> entity.set_occi_actions([startAction, stopAction])
+        Traceback (most recent call last):
+        UnknownCategory: "http://example.com/occi/foo/action#stop": Unknown Category: Action not defined for this resource instance
+
+        """
+        self._occi_actions_applicable = []
+        for category in actions or ():
+            cat_id = str(category)
+            if cat_id not in self._occi_actions_available:
+                raise self.UnknownCategory(cat_id, 'Action not defined for this resource instance')
+            self._occi_actions_applicable.append(cat_id)
 
 class Resource(Entity):
     def __init__(self, kind, links=None, **kwargs):
