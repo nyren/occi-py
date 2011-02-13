@@ -50,6 +50,27 @@ class ServerBackend(object):
         """
         raise NotImplemented('Server Backend must implement delete_entities')
 
+    def exec_action(self, action, entity, payload=None, user=None):
+        """Execute `Action` on the given `Entity` (resource instance).
+
+        :param action: `Action` instance.
+        :param entity: `Entity` (resource) instance.
+        :keyword payload: Binary payload supplied with Action.
+        :keyword user: The authenticated user.
+        """
+        raise NotImplemented('Server Backend must implement exec_action')
+
+    def exec_action_on_collection(self, action, collection, payload=None, user=None):
+        """Execute `Action` on the all `Entity` instances in the specified
+        collection (if applicable).
+
+        :param action: `Action` instance.
+        :param collection: `Kind` or `Mixin` instance.
+        :keyword payload: Binary payload supplied with Action.
+        :keyword user: The authenticated user.
+        """
+        raise NotImplemented('Server Backend must implement exec_action_on_collection')
+
 
 class DummyBackend(ServerBackend):
     """Very simple (and inefficient) in-memory backend for test purposes.
