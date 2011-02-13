@@ -24,7 +24,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         server.registry.register(IPNetworkInterfaceMixin)
         server.registry.register(StorageLinkKind)
 
-        # Pre-populate backend: Compute resources
+        # Pre-populate backend: Compute Resources
         entities = []
         e = ComputeKind.entity_type(ComputeKind)
         attrs = [('title', 'A "little" VM'), ('occi.compute.memory', 5.0/3)]
@@ -38,7 +38,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         #
         self.compute_id = server.backend.save_entities(entities)
 
-        # Pre-populate backend: Network resources
+        # Pre-populate backend: Network Resources
         entities = []
         e = NetworkKind.entity_type(NetworkKind)
         e.add_occi_mixin(IPNetworkMixin)
@@ -57,15 +57,37 @@ class HandlerTestCaseBase(unittest.TestCase):
         #
         self.network_id = server.backend.save_entities(entities)
 
-        # Pre-populate backend: Storage resources
+        # Pre-populate backend: Storage Resources
         entities = []
-        e = StorageKind.entity_type(NetworkKind)
+        e = StorageKind.entity_type(StorageKind)
         attrs = [('title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
         entities.append(e)
         #
         self.storage_id = server.backend.save_entities(entities)
 
-        self.entity_ids = self.compute_id + self.network_id + self.storage_id
+        # Pre-populate backend: Links
+        entities = []
+        e = NetworkInterfaceKind.entity_type(NetworkInterfaceKind)
+        e.add_occi_mixin(IPNetworkInterfaceMixin)
+        attrs = [('title', 'Primary Interface'), ('occi.networkinterface.state', 'active')]
+        attrs.append(('occi.networkinterface.interface', 'eth0'))
+        attrs.append(('occi.networkinterface.mac', '00:11:22:33:44:55'))
+        attrs.append(('occi.networkinterface.ip', '11.12.13.14'))
+        attrs.append(('occi.networkinterface.allocation', 'static'))
+        attrs.append(('source', self.compute_id[0]))
+        attrs.append(('target', self.network_id[0]))
+        entities.append(e)
+        #
+        e = StorageLinkKind.entity_type(StorageLinkKind)
+        attrs = [('title', 'Boot drive'), ('occi.storagelink.state', 'active')]
+        attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
+        attrs.append(('source', self.compute_id[0]))
+        attrs.append(('target', self.storage_id[0]))
+        entities.append(e)
+        #
+        self.link_id = server.backend.save_entities(entities)
+
+        self.entity_ids = self.compute_id + self.network_id + self.storage_id + self.link_id
 
     def _verify_headers(self, response_headers=[], expected_headers=[]):
         i = 0
