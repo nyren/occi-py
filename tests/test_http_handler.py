@@ -27,13 +27,18 @@ class HandlerTestCaseBase(unittest.TestCase):
         # Pre-populate backend: Compute Resources
         entities = []
         e = ComputeKind.entity_type(ComputeKind)
-        attrs = [('title', 'A "little" VM'), ('occi.compute.memory', 5.0/3)]
-        e.set_occi_attributes(attrs)
+        attrs = [('title', 'A "little" VM'), ('occi.compute.state', 'inactive')]
+        attrs.append(('occi.compute.memory', 5.0/3))
+        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_applicable_action(ComputeStartActionCategory)
         entities.append(e)
         #
         e = ComputeKind.entity_type(ComputeKind)
-        attrs = [('title', 'Another " VM'), ('occi.compute.speed', '2.33'), ('occi.compute.memory', '4.0')]
-        e.set_occi_attributes(attrs)
+        attrs = [('title', 'Another " VM'), ('occi.compute.state', 'active')]
+        attrs.append(('occi.compute.speed', '2.33'))
+        attrs.append(('occi.compute.memory', '4.0'))
+        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_applicable_action(ComputeStopActionCategory)
         entities.append(e)
         #
         self.compute_id = server.backend.save_entities(entities)
@@ -153,7 +158,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         response = self._get(accept_header='text/occi')
         self.assertEqual(response.body, '')
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
-        self.assertEqual(len(response.headers), 4)
+        self.assertEqual(len(response.headers), 6)
 
     def test_get__text_plain(self):
         response = self._get(accept_header='text/plain')
@@ -170,8 +175,10 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
+        expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self.compute_id[0])
         expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory="%s"' % (5.0/3))
+        expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
         self._verify_body(response.body, expected_body)
 
     def test_post(self):
@@ -202,10 +209,12 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
+        expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self.compute_id[1])
         expected_body.append('X-OCCI-Attribute: title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores="3"')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed="3.26"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory="2.0"')
+        expected_body.append('X-OCCI-Attribute: occi.compute.state="active"')
         self._verify_body(get_response.body, expected_body)
 
     def test_put_nonexisting(self):
