@@ -5,6 +5,11 @@ from occi.core import (Category, Kind, Mixin, Resource, Link, ResourceKind,
 # Compute Kind
 # ============
 
+ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Start Compute Resource')
+ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Stop Compute Resource')
+
 ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Compute Resource',
         related=ResourceKind,
@@ -17,13 +22,12 @@ ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
             FloatAttribute('occi.compute.speed', required=False, mutable=True),
             FloatAttribute('occi.compute.memory', required=False, mutable=True),
             Attribute('occi.compute.state', required=False, mutable=False),
-        )
+        ),
+        actions=(
+            ComputeStartActionCategory,
+            ComputeStopActionCategory,
+        ),
 )
-
-ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Start Compute Resource')
-ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Stop Compute Resource')
 
 #
 # Network Kind
