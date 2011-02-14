@@ -350,7 +350,7 @@ class Entity(object):
         self._occi_mixins = {}
         self._occi_attributes = {}
         self._occi_actions_available = {}
-        self._occi_actions_applicable = ()
+        self._occi_actions_applicable = {}
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
@@ -371,6 +371,7 @@ class Entity(object):
         for category in actions:
             cat_id = str(category)
             self._occi_actions_available.pop(cat_id, None)
+            self._occi_actions_applicable.pop(cat_id, None)
 
     def get_occi_kind(self):
         return self._occi_kind
@@ -483,38 +484,61 @@ class Entity(object):
         if attr_dict:
             raise self.UnknownAttribute(attr_dict.keys()[0])
 
-    def get_occi_actions(self):
+    def occi_list_actions(self):
         """Return a list of Category instances which define the Actions
-        currently applicable to this resource instance.
+        _available_ to this resource instance.
         """
-        return [self._occi_actions_available[cat_id] for cat_id in self._occi_actions_applicable]
+        return self._occi_actions_available.values()
 
-    def set_occi_actions(self, actions=None):
-        """Define the set of actions currently applicable to this resource
-        instance.
+    def occi_list_applicable_actions(self):
+        """Return a list of Category instances which define the Actions
+        currently _applicable_ to this resource instance.
+        """
+        return [self._occi_actions_available[cat_id] for cat_id in self._occi_actions_applicable.keys()]
 
-        :keyword actions: List of Category instances.
+    def occi_is_applicable_action(self, action_category):
+        """Return whether the given Category instance correspond to a currently
+        applicable Action.
+        """
+        cat_id = str(action_category)
+        return cat_id in self._occi_actions_applicable and cat_id in self._occi_actions_available
+
+    def occi_set_applicable_action(self, action_category, applicable=True):
+        """Set 'applicable' state of an action. By default all actions defined
+        for a resource instance are non-applicable.
+
+        :param action_category: The Category instance defining the Action.
+        :keyword applicable: Boolean, whether action is currently applicable or not.
 
         >>> startAction = Category('start', 'http://example.com/occi/foo/action#')
         >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)], actions=[startAction])
         >>> entity = Entity(fooKind)
-        >>> entity.get_occi_actions()
+        >>> entity.occi_list_actions()
+        [Category('start', 'http://example.com/occi/foo/action#')]
+        >>> entity.occi_list_applicable_actions()
         []
-        >>> entity.set_occi_actions([startAction])
-        >>> entity.get_occi_actions()
+        >>> entity.occi_is_applicable_action(startAction)
+        False
+        >>> entity.occi_set_applicable_action(startAction)
+        >>> entity.occi_is_applicable_action(startAction)
+        True
+        >>> entity.occi_list_applicable_actions()
         [Category('start', 'http://example.com/occi/foo/action#')]
         >>> stopAction = Category('stop', 'http://example.com/occi/foo/action#')
-        >>> entity.set_occi_actions([startAction, stopAction])
+        >>> entity.occi_is_applicable_action(stopAction)
+        False
+        >>> entity.occi_set_applicable_action(stopAction)
         Traceback (most recent call last):
         UnknownCategory: "http://example.com/occi/foo/action#stop": Unknown Category: Action not defined for this resource instance
 
         """
-        self._occi_actions_applicable = []
-        for category in actions or ():
-            cat_id = str(category)
-            if cat_id not in self._occi_actions_available:
-                raise self.UnknownCategory(cat_id, 'Action not defined for this resource instance')
-            self._occi_actions_applicable.append(cat_id)
+        cat_id = str(action_category)
+        if cat_id not in self._occi_actions_available:
+            raise self.UnknownCategory(cat_id, 'Action not defined for this resource instance')
+        if applicable:
+            self._occi_actions_applicable[cat_id] = True
+        else:
+            self._occi_actions_applicable.pop(cat_id, None)
 
 class Resource(Entity):
     def __init__(self, kind, links=None, **kwargs):
