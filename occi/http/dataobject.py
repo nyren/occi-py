@@ -27,6 +27,7 @@ class DataObject(object):
         >>> compute = ComputeKind.entity_type(ComputeKind)
         >>> compute.id = 'compute/123'
         >>> compute.set_occi_attributes([('occi.compute.speed', 7.0/3)], validate=False)
+        >>> compute.occi_set_applicable_action(ComputeStartActionCategory)
         >>> storage = StorageKind.entity_type(StorageKind)
         >>> storage.id = 'storage/234'
         >>> storage.set_occi_attributes([('title', 'My Disk')], validate=False)
@@ -44,9 +45,9 @@ class DataObject(object):
         >>> d.attributes
         [('occi.compute.speed', '2.33')]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
-        [('storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk')]
+        [('storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('compute/123?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
-        [('link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')])]
+        [('link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
 
         """
         id2location = id2location or (lambda x: x)
@@ -70,6 +71,14 @@ class DataObject(object):
                     l.link_attributes = link_attributes
 
                 self.links.append(l)
+
+        # Actions
+        for action in entity.occi_list_applicable_actions():
+            l = LinkRepr(
+                    target_location='%s?action=%s' % (self.location, action.term),
+                    target_categories=[action],
+                    target_title=action.title)
+            self.links.append(l)
 
     def save_to_entity(self, entity=None, location2id=None, category_registry=None,
             validate_attr=True, save_links=False):
@@ -177,10 +186,12 @@ class DataObject(object):
                 category = category_registry.lookup_id(str(category))
             if isinstance(category, Kind):
                 if kind is not None:
-                    raise self.Invalid('Only one Kind allowed to define a resource')
+                    raise self.Invalid('%s: Only one Kind allowed to define a resource' % category)
                 kind = category
-            else:
+            elif isinstance(category, Mixin):
                 mixins.append(category)
+            else:
+                raise self.Invalid('%s: Is neither a Kind nor a Mixin' % category)
 
         return kind, mixins
 
