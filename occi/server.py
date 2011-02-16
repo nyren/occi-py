@@ -157,6 +157,7 @@ class DummyBackend(ServerBackend):
                     if l.id != source.id:
                         links.append(l)
                 links.append(entity)
+                source.links = links
 
             self._db[entity.id] = entity
             id_list.append(entity.id)

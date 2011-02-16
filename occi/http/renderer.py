@@ -131,7 +131,7 @@ class HeaderRenderer(Renderer):
             kwargs['rel'] = ' '.join([str(cat) for cat in link.target_categories])
             kwargs['title'] = link.target_title or ''
             if link.link_location:
-                kwargs['self'] = link.link_location
+                kwargs['self_'] = link.link_location
                 for attr, value in link.link_attributes:
                     kwargs[attr] = value
 
