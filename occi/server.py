@@ -5,7 +5,7 @@ try:
 except ImportError:
     OrderedDict = dict
 
-from occi.core import Entity, CategoryRegistry
+from occi.core import Entity, Resource, Link, CategoryRegistry
 
 class OCCIServer(object):
     """An OCCI Server instance."""
@@ -81,9 +81,10 @@ class DummyBackend(ServerBackend):
     >>> compute = ComputeKind.entity_type(ComputeKind)
     >>> compute.set_occi_attributes([('occi.compute.memory', '2.0')])
     >>> storage = StorageKind.entity_type(StorageKind)
+    >>> compute_id, storage_id = backend.save_entities([compute, storage])
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-    >>> link.target = storage ; compute.links.append(link)
-    >>> compute_id, storage_id, link_id = backend.save_entities([compute, storage, link])
+    >>> link.set_occi_attributes([('source', compute_id), ('target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
+    >>> link_id = backend.save_entities([link])
     >>> len(backend.filter_entities())
     4
     >>> len(backend.filter_entities(categories=[ComputeKind]))
@@ -140,9 +141,22 @@ class DummyBackend(ServerBackend):
     def save_entities(self, entities, id_prefix=None, user=None):
         id_list = []
         for entity in entities:
+            # Generate ID if new instance
             if not entity.id:
                 loc = entity.get_occi_kind().location or ''
                 entity.id = '%s%s' % (loc, uuid.uuid4())
+
+            # Links
+            if isinstance(entity, Link):
+                source = self.get_entity(entity.get_occi_attribute('source'), user=user)
+                target = self.get_entity(entity.get_occi_attribute('target'), user=user)
+                entity.source = source
+                entity.target = target
+                links = []
+                for l in source.links:
+                    if l.id != source.id:
+                        links.append(l)
+                links.append(entity)
 
             self._db[entity.id] = entity
             id_list.append(entity.id)
@@ -151,6 +165,15 @@ class DummyBackend(ServerBackend):
     def delete_entities(self, entity_ids, user=None):
         for entity_id in entity_ids:
             try:
+                entity = self._db[entity_id]
+                if isinstance(entity, Resource):
+                    for l in entity.links:
+                        self._db.pop(l.id, None)
+                elif isinstance(entity, Link):
+                    try:
+                        entity.source.links.remove(entity)
+                    except ValueError:
+                        pass
                 del self._db[entity_id]
             except KeyError:
                 raise Entity.DoesNotExist(entity_id)
