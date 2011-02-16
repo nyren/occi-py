@@ -98,7 +98,7 @@ IPNetworkInterfaceMixin = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/oc
         title='IPNetworkInterface Link',
         location='link/ipnetworkinterface/',
         attributes=(
-            Attribute('occi.networkinterface.address', required=True, mutable=True),
+            Attribute('occi.networkinterface.ip', required=True, mutable=True),
             Attribute('occi.networkinterface.gateway', required=False, mutable=True),
             Attribute('occi.networkinterface.allocation', required=True, mutable=True),
         )

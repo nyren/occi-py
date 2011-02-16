@@ -81,6 +81,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.networkinterface.allocation', 'static'))
         attrs.append(('source', self.compute_id[0]))
         attrs.append(('target', self.network_id[0]))
+        e.set_occi_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = StorageLinkKind.entity_type(StorageLinkKind)
@@ -88,6 +89,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
         attrs.append(('source', self.compute_id[0]))
         attrs.append(('target', self.storage_id[0]))
+        e.set_occi_attributes(attrs, validate=False)
         entities.append(e)
         #
         self.link_id = server.backend.save_entities(entities)
