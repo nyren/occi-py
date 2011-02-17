@@ -18,17 +18,17 @@ class OCCIServer(object):
 class ServerBackend(object):
     __metaclass__ = ABCMeta
 
-    def ServerBackendError(Exception):
+    class ServerBackendError(Exception):
         pass
-    def InvalidOperation(ServerBackendError):
+    class InvalidOperation(ServerBackendError):
         pass
 
     def get_entity(self, entitiy_id, user=None):
-        raise NotImplemented('Server Backend must implement get_entity')
+        raise self.ServerBackendError('Server Backend must implement get_entity')
 
     def filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
         """not too sure about id_prefix filtering, i.e. path"""
-        raise NotImplemented('Server Backend must implement filter_entities')
+        raise self.ServerBackendError('Server Backend must implement filter_entities')
 
     def save_entities(self, entities, id_prefix=None, user=None):
         """Save a set of entities (resource instances) in a single atomic
@@ -39,7 +39,7 @@ class ServerBackend(object):
         :keyword user: The authenticated user.
         :return: A list IDs of the saved `Entity` objects.
         """
-        raise NotImplemented('Server Backend must implement save_entities')
+        raise self.ServerBackendError('Server Backend must implement save_entities')
 
     def delete_entities(self, entity_ids, user=None):
         """Delete a set of entities (resource instances) in a single atomic
@@ -48,7 +48,7 @@ class ServerBackend(object):
         :param entity_ids: A list `Entity` IDs to delete.
         :keyword user: The authenticated user.
         """
-        raise NotImplemented('Server Backend must implement delete_entities')
+        raise self.ServerBackendError('Server Backend must implement delete_entities')
 
     def exec_action(self, action, entity, payload=None, user=None):
         """Execute `Action` on the given `Entity` (resource instance).
@@ -58,7 +58,7 @@ class ServerBackend(object):
         :keyword payload: Binary payload supplied with Action.
         :keyword user: The authenticated user.
         """
-        raise NotImplemented('Server Backend must implement exec_action')
+        raise self.ServerBackendError('Server Backend must implement exec_action')
 
     def exec_action_on_collection(self, action, collection, payload=None, user=None):
         """Execute `Action` on the all `Entity` instances in the specified
@@ -69,7 +69,7 @@ class ServerBackend(object):
         :keyword payload: Binary payload supplied with Action.
         :keyword user: The authenticated user.
         """
-        raise NotImplemented('Server Backend must implement exec_action_on_collection')
+        raise self.ServerBackendError('Server Backend must implement exec_action_on_collection')
 
 
 class DummyBackend(ServerBackend):
