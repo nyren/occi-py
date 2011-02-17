@@ -1,14 +1,20 @@
-from occi.core import (Category, Kind, Mixin, Resource, Link, ResourceKind,
-        LinkKind, Attribute, IntAttribute, FloatAttribute)
+from occi.core import (Category, ExtCategory, Kind, Mixin, Resource, Link,
+        ResourceKind, LinkKind, Attribute, IntAttribute, FloatAttribute)
 
 #
 # Compute Kind
 # ============
 
 ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Start Compute Resource')
+        title='Start Compute Resource',
+        attributes=(
+            Attribute('method', mutable=True),
+        ))
 ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
-        title='Stop Compute Resource')
+        title='Stop Compute Resource',
+        attributes=(
+            Attribute('method', mutable=True),
+        ))
 
 ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Compute Resource',
