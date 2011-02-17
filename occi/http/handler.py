@@ -341,12 +341,12 @@ class CollectionHandler(HandlerBase):
             dao_list.append(DataObject(location=entity_id))
 
         # Render response
-        headers, body = renderer.render(dao_list)
+        renderer.render(dao_list)
 
         # Set Location header to the first ID
-        headers.append(('Location', id_list[0]))
+        renderer.headers.append(('Location', id_list[0]))
 
-        return HttpResponse(headers, body)
+        return HttpResponse(renderer.headers, renderer.body)
 
     def _collection_action(self, request, path):
         return hrc.NOT_IMPLEMENTED()
@@ -361,13 +361,23 @@ class CollectionHandler(HandlerBase):
 
 class DiscoveryHandler(HandlerBase):
     def get(self, request):
-        """list all Categories"""
-        return HttpResponse()
+        """List all Category instance registered in the system"""
+        # Parse request
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
+
+        dao = DataObject(categories=self.server.registry.all())
+
+        # Render response
+        renderer.render(dao)
+        return HttpResponse(renderer.headers, renderer.body)
 
     def put(self, request):
-        """create custom Mixin"""
-        pass
+        """Create a custem Mixin instance"""
+        return hrc.NOT_IMPLEMENTED()
 
     def delete(self, request):
-        """delete custom Mixin"""
-        pass
+        """Remove a custem Mixin instance"""
+        return hrc.NOT_IMPLEMENTED()

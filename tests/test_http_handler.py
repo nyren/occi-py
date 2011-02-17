@@ -318,3 +318,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append('X-OCCI-Location: %s' % self.compute_id[1])
         self._verify_body(response.body, expected_body)
+
+class DiscoveryHandlerTestCase(HandlerTestCaseBase):
+    def setUp(self):
+        super(DiscoveryHandlerTestCase, self).setUp()
+        self.handler = DiscoveryHandler(self.server)
+
+    def test_get(self):
+        request = HttpRequest([], '')
+        response = self.handler.get(request)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.body, 'apa')
