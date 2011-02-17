@@ -160,7 +160,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         response = self._get(accept_header='text/occi')
         self.assertEqual(response.body, '')
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
-        self.assertEqual(len(response.headers), 6)
+        self.assertEqual(len(response.headers), 8)
 
     def test_get__text_plain(self):
         response = self._get(accept_header='text/plain')
@@ -177,6 +177,8 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (self.network_id[0], self.link_id[0]))
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (self.storage_id[0], self.link_id[1]))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self.compute_id[0])
         expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory="%s"' % (5.0/3))
