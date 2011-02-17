@@ -109,6 +109,7 @@ class CategoryRegistry(object):
     OCCI server or client.
 
     >>> reg = CategoryRegistry()
+    >>> from occi.core import Category, ExtCategory, Kind, Mixin
     >>> from occi.ext.infrastructure import *
     >>> reg.register(ComputeKind)
     >>> reg.register(StorageKind)
@@ -116,8 +117,6 @@ class CategoryRegistry(object):
     >>> fooKind = Kind('foo', 'http://#', related=ResourceKind, location='compute/')
     >>> reg.register(fooKind)
     Traceback (most recent call last):
-      File "core.py", line 131, in register
-        raise Category.Invalid('%s: location path already defined' % category.location)
     Invalid: compute/: location path already defined
     >>> reg.lookup_id(ComputeKind)
     Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')
@@ -139,11 +138,23 @@ class CategoryRegistry(object):
         s = str(category)
         if s in self._categories:
             self.unregister(s)
-        if category.location:
+
+        # Location
+        if hasattr(category, 'location') and category.location:
             if category.location in self._locations:
                 raise Category.Invalid('%s: location path already defined' % category.location)
             self._locations[category.location] = category
+
+        # Register category
         self._categories[s] = category
+
+        # Register actions
+        if hasattr(category, 'actions'):
+            for action in category.actions:
+                if hasattr(action, 'actions'):
+                    raise Category.Invalid(
+                            '%s: Only the base Category type allowed to identify Actions' % action)
+                self.register(action)
 
     def unregister(self, category):
         """Unregister a previously registered Category/Kind/Mixin."""
@@ -151,10 +162,18 @@ class CategoryRegistry(object):
             category = self._categories[str(category)]
         except KeyError:
             raise Category.Invalid("%s: Category not registered" % category)
-        else:
-            del self._categories[str(category)]
-            if category.location:
-                self._locations.pop(category.location, None)
+
+        # Unregister category
+        del self._categories[str(category)]
+
+        # Remove location entry
+        if hasattr(category, 'location') and category.location:
+            self._locations.pop(category.location, None)
+
+        # Remove additional action categories
+        if hasattr(category, 'actions'):
+            for action in category.actions:
+                self.unregister(action)
 
     def lookup_id(self, identifier):
         try:
