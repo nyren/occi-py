@@ -1,4 +1,4 @@
-from occi.core import Category, Kind, Resource, Link
+from occi.core import Category, Kind, Resource, Link, Action
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -194,6 +194,45 @@ class DataObject(object):
                 raise self.Invalid('%s: Is neither a Kind nor a Mixin' % category)
 
         return kind, mixins
+
+    def save_as_action(self, location2id=None, category_registry=None):
+        """Save the `DataObject` contents as an Action instance.
+
+        >>> from occi.ext.infrastructure import *
+        >>> d = DataObject()
+        >>> d.categories = [ComputeStartActionCategory]
+        >>> d.attributes = [('method', 'acpioff')]
+        >>> action = d.save_as_action()
+        >>> action.category
+        Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')
+        >>> action.parameters
+        [('method', 'acpioff')]
+        >>> d.attributes.append(('foo', 'bar'))
+        >>> d.save_as_action()
+        Traceback (most recent call last):
+        Invalid: "foo": Unknown parameter
+        """
+
+        location2id = location2id or (lambda x: x)
+
+        # Resolve category
+        if len(self.categories) != 1:
+            raise self.Invalid('Specify a single Category to identify an Action')
+        if category_registry:
+            try:
+                category = category_registry.lookup_id(self.categories[0])
+            except Category.DoesNotExist as e:
+                raise self.Invalid(e)
+        else:
+            category = self.categories[0]
+
+        # Create new Action instance
+        try:
+            action = Action(category, self.attributes)
+        except Action.ActionError as e:
+            raise self.Invalid(e)
+
+        return action
 
 class LinkRepr(object):
     def __init__(self,
