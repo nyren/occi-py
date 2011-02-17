@@ -186,18 +186,24 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self._verify_body(response.body, expected_body)
 
     def test_post(self):
-        """Action"""
         request_headers = []
         request_headers.append(('Category', 'stop; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request_headers.append(('x-occi-attribute', 'method="acpioff"'))
         request = HttpRequest(request_headers, '', query_args={'action': 'stop'})
-        response = self.handler.post(request, self.compute_id[0])
-        self.assertEqual(response.status, 501)
+        response = self.handler.post(request, self.compute_id[1])
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
 
-    def test_post_nonexisting(self):
+    def test_post_no_query(self):
         request = HttpRequest([], '')
         response = self.handler.post(request, 'blah/not/found')
-        self.assertEqual(response.status, 501)
+        self.assertEqual(response.status, 400)
+        self.assertEqual(response.body, 'Missing action query parameter')
+
+    def test_post_not_found(self):
+        request = HttpRequest([], '', query_args={'action': 'stop'})
+        response = self.handler.post(request, 'blah/not/found')
+        self.assertEqual(response.status, 404)
 
     def test_put(self):
         entity_id = self.compute_id[1]

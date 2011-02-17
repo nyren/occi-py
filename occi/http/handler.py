@@ -1,4 +1,5 @@
 from occi.core import Entity
+from occi.server import ServerBackend
 from occi.http import get_parser, get_renderer
 from occi.http.header import HttpHeaderError
 from occi.http.parser import ParserError
@@ -130,6 +131,18 @@ class HandlerBase(object):
             print e
             raise HttpRequestError(hrc.SERVER_ERROR())
 
+    def _exec_action(self, action, entity, payload=None, user=None):
+        """Instruct backend to execute Action on the given Entity."""
+        try:
+            return self.server.backend.exec_action(action, entity, payload=payload, user=user)
+        except Entity.DoesNotExist as e:
+            raise HttpRequestError(hrc.NOT_FOUND(e))
+        except ServerBackend.InvalidOperation as e:
+            raise HttpRequestError(hrc.BAD_REQUEST(e))
+        except ServerBackend.ServerBackendError as e:
+            print e
+            raise HttpRequestError(hrc.SERVER_ERROR())
+
 class EntityHandler(HandlerBase):
     def get(self, request, entity_id):
         """Retrieve a resource instance."""
@@ -147,7 +160,52 @@ class EntityHandler(HandlerBase):
 
     def post(self, request, entity_id):
         """Execute an Action on a resource instance."""
-        return hrc.NOT_IMPLEMENTED()
+
+        # Action query argument
+        try:
+            action_name = request.query_args['action']
+        except KeyError:
+            return hrc.BAD_REQUEST('Missing action query parameter')
+
+        # Get instance
+        try:
+            parser, renderer = self._request_init(request)
+            entity = self._get_entity(entity_id, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Only a single data object allowed
+        if not parser.objects:
+            return hrc.BAD_REQUEST('No action instance specified')
+        elif len(parser.objects) > 1:
+            return hrc.BAD_REQUEST('More than one action instance specified')
+        dao = parser.objects[0]
+
+        # Create Action instance
+        try:
+            action = dao.save_as_action(category_registry=self.server.registry)
+        except DataObject.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Verify Action query param
+        if action.category.term != action_name:
+            return hrc.BAD_REQUEST('%s: query parameter mismatch action category' % action_name)
+
+        # Verify Action is applicable
+        if not entity.occi_is_applicable_action(action.category):
+            return hrc.BAD_REQUEST('%s: action not applicable' % action_name)
+
+        # Execute Action
+        try:
+            body = self._exec_action(action, entity, payload=request.body, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+        headers = []
+        if body:
+            headers.append(('Content-Type', 'application/octet-stream'))
+            response = HttpResponse(headers, body)
+        else:
+            response = hrc.ALL_OK()
 
     def put(self, request, entity_id):
         """Update an existing resource instance."""
