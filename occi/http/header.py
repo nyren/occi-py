@@ -84,17 +84,7 @@ class HttpWebHeadersBase(HttpHeadersBase):
     """
     HEADER_VALUE_REGEXP = re.compile(r'^\s*([^;]+)\s*')
 
-    def add(self, item, **attributes):
-        try:
-            attributes['class'] = attributes['class_']
-            del attributes['class_']
-        except KeyError:
-            pass
-        try:
-            attributes['self'] = attributes['self_']
-            del attributes['self_']
-        except KeyError:
-            pass
+    def add(self, item, attributes=()):
         super(HttpWebHeadersBase, self).add((item, attributes))
 
     def _from_string(self, header_string, value_re=HEADER_VALUE_REGEXP):
@@ -106,7 +96,7 @@ class HttpWebHeadersBase(HttpHeadersBase):
         attr_string = header_string[m.end():]
 
         # Split and parse string of header attributes
-        attributes = {}
+        attributes = []
         for s in split_quoted(attr_string, delimiter=';'):
             if not s:
                 continue
@@ -114,7 +104,7 @@ class HttpWebHeadersBase(HttpHeadersBase):
                 k, v = split_quoted(s.strip(), delimiter='=', remove_quotes=True)
             except ValueError:
                 raise HttpHeaderError("'%s': failed to parse header attribute" % s)
-            attributes[k] = v
+            attributes.append((k, v))
 
         return (value, attributes)
 
@@ -122,14 +112,14 @@ class HttpWebHeadersBase(HttpHeadersBase):
         item, attributes = header
         return '; '.join(
             ['%s' % item] +
-            ['%s="%s"' % (name, escape_quotes(str(value))) for name, value in attributes.iteritems()])
+            ['%s="%s"' % (name, escape_quotes(str(value))) for name, value in attributes])
 
 class HttpLinkHeaders(HttpWebHeadersBase):
     """HTTP Web Link header.
 
     >>> h = HttpLinkHeaders()
-    >>> h.add('/api/compute/vm01;start', rel='http://purl.org/occi/action#start', class_='action', title='Start')
-    >>> h.add('/api/storage/san1', rel='http://purl.org/occi/kind#storage', class_='link', title='Quorum Disk', device='sda')
+    >>> h.add('/api/compute/vm01;start', [('rel', 'http://schemas.ogf.org/occi/action#start'), ('class', 'action'), ('title', 'Start')])
+    >>> h.add('/api/storage/san1', [('rel', 'http://schemas.ogf.org/occi/kind#storage'), ('class', 'link'), ('title', 'Quorum Disk'), ('device', 'sda')])
     >>> s = str(h)
     >>> x = h.parse(s)
     >>> str(h) == s
@@ -151,8 +141,8 @@ class HttpCategoryHeaders(HttpWebHeadersBase):
     """HTTP Web Category header.
 
     >>> h = HttpCategoryHeaders()
-    >>> h.add('compute', scheme='http://purl.org/occi/kind#', label='Compute Resource')
-    >>> h.add('ubuntu-9.10', scheme='http://purl.org/occi/category#template', label='Ubuntu Linux 9.10')
+    >>> h.add('compute', attributes=[('scheme', 'http://schemas.ogf.org/occi/kind#'), ('label', 'Compute Resource')])
+    >>> h.add('ubuntu-9.10', [('scheme', 'http://schemas.ogf.org/occi/category#template'), ('label', 'Ubuntu Linux 9.10')])
     >>> s = str(h)
     >>> x = h.parse(s)
     >>> str(h) == s
@@ -168,7 +158,7 @@ class HttpAcceptHeaders(HttpWebHeadersBase):
     >>> s = 'text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/x-xbitmap, */*;q=0.1'
     >>> h = HttpAcceptHeaders()
     >>> h.parse(s)
-    [('text/html', {}), ('application/xml', {'q': '0.9'}), ('application/xhtml+xml', {}), ('image/png', {}), ('image/x-xbitmap', {}), ('*/*', {'q': '0.1'})]
+    [('text/html', []), ('application/xml', [('q', '0.9')]), ('application/xhtml+xml', []), ('image/png', []), ('image/x-xbitmap', []), ('*/*', [('q', '0.1')])]
 
     """
     pass

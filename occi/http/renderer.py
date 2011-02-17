@@ -110,32 +110,33 @@ class HeaderRenderer(Renderer):
         # Category headers
         category_headers = HttpCategoryHeaders()
         for category in obj.categories:
-            kwargs = {}
-            kwargs['scheme'] = category.scheme
-            kwargs['class'] = category.__class__.__name__.lower()
+            params = []
+            params.append(('scheme',  category.scheme))
 
+            cat_class = category.__class__.__name__.lower()
             # FIXME: this is a bug in the spec, fix it?
-            if kwargs['class'] == 'category': kwargs['class'] = 'action'
+            if cat_class == 'category': cat_class = 'action'
+            params.append(('class',  cat_class))
 
             if category.related:
-                kwargs['rel'] = category.related
+                params.append(('rel',  category.related))
             if category.title:
-                kwargs['title'] = category.title
-            category_headers.add(category.term, **kwargs)
+                params.append(('title',  category.title))
+            category_headers.add(category.term, params)
         [self.headers.append(('Category', h)) for h in category_headers.headers()]
 
         # Link headers
         link_headers = HttpLinkHeaders()
         for link in obj.links:
-            kwargs = {}
-            kwargs['rel'] = ' '.join([str(cat) for cat in link.target_categories])
-            kwargs['title'] = link.target_title or ''
+            params = []
+            params.append(('rel',  ' '.join([str(cat) for cat in link.target_categories])))
+            params.append(('title',  link.target_title or ''))
             if link.link_location:
-                kwargs['self_'] = link.link_location
+                params.append(('self',  link.link_location))
                 for attr, value in link.link_attributes:
-                    kwargs[attr] = value
+                    params.append((attr,  value))
 
-            link_headers.add(link.target_location, **kwargs)
+            link_headers.add(link.target_location, params)
         [self.headers.append(('Link', h)) for h in link_headers.headers()]
 
         # Attribute headers

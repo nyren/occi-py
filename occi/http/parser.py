@@ -151,7 +151,11 @@ class HeaderParser(Parser):
         categories = []
         category_headers = HttpCategoryHeaders()
         category_headers.parse(header_value)
-        for term, param in category_headers.all():
+        for term, attributes in category_headers.all():
+            param = {}
+            for k, v in attributes:
+                param[k] = v
+
             # Category scheme
             try:
                 scheme = param['scheme']
