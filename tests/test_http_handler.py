@@ -205,6 +205,14 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         response = self.handler.post(request, 'blah/not/found')
         self.assertEqual(response.status, 404)
 
+    def test_post_not_applicable(self):
+        request_headers = []
+        request_headers.append(('Category', 'start; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
+        request = HttpRequest(request_headers, '', query_args={'action': 'start'})
+        response = self.handler.post(request, self.compute_id[1])
+        self.assertEqual(response.status, 400)
+        self.assertEqual(response.body, 'start: action not applicable')
+
     def test_put(self):
         entity_id = self.compute_id[1]
         request_body = ''
@@ -325,7 +333,16 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         self.handler = DiscoveryHandler(self.server)
 
     def test_get(self):
-        request = HttpRequest([], '')
+        headers = [('Accept', 'text/occi')]
+        request = HttpRequest(headers, '')
         response = self.handler.get(request)
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.body, 'apa')
+        self.assertEqual(response.body, '')
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+        self.assertEqual(len(response.headers), len(self.server.registry.all()) + 1)
+
+        expected_headers = []
+        expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="title"'))
+        expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; rel="http://schemas.ogf.org/occi/core#entity"; title="Resource type"; attributes="summary"'))
+        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; rel="http://schemas.ogf.org/occi/core#entity"; title="Link type"; attributes="source target"'))
+        self._verify_headers(response.headers[1:3], expected_headers)

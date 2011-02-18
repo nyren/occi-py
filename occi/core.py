@@ -124,6 +124,7 @@ class CategoryRegistry(object):
     Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')
     >>> reg.unregister(StorageKind)
     >>> reg.unregister(ComputeKind)
+    >>> reg.unregister(EntityKind) ; reg.unregister(ResourceKind) ; reg.unregister(LinkKind)
     >>> reg.all()
     [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
 
@@ -132,6 +133,11 @@ class CategoryRegistry(object):
     def __init__(self):
         self._categories = OrderedDict()
         self._locations = {}
+
+        # Always register OCCI Core types
+        self.register(EntityKind)
+        self.register(ResourceKind)
+        self.register(LinkKind)
 
     def register(self, category):
         """Register a new Category/Kind/Mixin."""
