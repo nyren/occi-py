@@ -8,12 +8,12 @@ from occi.core import (Category, ExtCategory, Kind, Mixin, Resource, Link,
 ComputeStartActionCategory = Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
         title='Start Compute Resource',
         attributes=(
-            Attribute('method', mutable=True),
+            Attribute('method', required=False, mutable=True),
         ))
 ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
         title='Stop Compute Resource',
         attributes=(
-            Attribute('method', mutable=True),
+            Attribute('method', required=False, mutable=True),
         ))
 
 ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',

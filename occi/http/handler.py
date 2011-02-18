@@ -200,12 +200,15 @@ class EntityHandler(HandlerBase):
             body = self._exec_action(action, entity, payload=request.body, user=request.user)
         except HttpRequestError as e:
             return e.response
+
+        # Build response
         headers = []
         if body:
             headers.append(('Content-Type', 'application/octet-stream'))
             response = HttpResponse(headers, body)
         else:
             response = hrc.ALL_OK()
+        return response
 
     def put(self, request, entity_id):
         """Update an existing resource instance."""
