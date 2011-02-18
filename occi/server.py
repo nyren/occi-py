@@ -179,6 +179,8 @@ class DummyBackend(ServerBackend):
             except KeyError:
                 raise Entity.DoesNotExist(entity_id)
 
+    def exec_action(self, action, entity, payload=None, user=None):
+        pass
 
 if __name__ == "__main__":
     import doctest
