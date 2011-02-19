@@ -19,6 +19,8 @@ class DataObject(object):
         self.links = links or []
         self.attributes = attributes or []
         self.location = location
+        self.parse_flags = {}
+        self.render_flags = {}
 
     def load_from_entity(self, entity, id2location=None, convert_attr=False):
         """Load `DataObject` with the contents of the specified Entity instance.
