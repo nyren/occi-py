@@ -372,6 +372,7 @@ class DiscoveryHandler(HandlerBase):
             return e.response
 
         dao = DataObject(categories=self.server.registry.all())
+        dao.render_flags['category_discovery'] = True
 
         # Render response
         renderer.render(dao)

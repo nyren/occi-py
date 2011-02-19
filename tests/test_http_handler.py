@@ -131,9 +131,8 @@ class HandlerTestCaseBase(unittest.TestCase):
             cat_class = 'mixin'
         elif isinstance(category, Category):
             cat_class = 'action'
-        value = '%s; scheme="%s"; class="%s"; rel="%s"; title="%s"' % (
-                category.term, category.scheme, cat_class, category.related,
-                category.title)
+        value = '%s; scheme="%s"; class="%s"; title="%s"' % (
+                category.term, category.scheme, cat_class, category.title)
         if body_rendering:
             return 'Category: ' + value
         return ('Category', value)
@@ -343,6 +342,6 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
 
         expected_headers = []
         expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="title"'))
-        expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; rel="http://schemas.ogf.org/occi/core#entity"; title="Resource type"; attributes="summary"'))
-        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; rel="http://schemas.ogf.org/occi/core#entity"; title="Link type"; attributes="source target"'))
-        self._verify_headers(response.headers[1:3], expected_headers)
+        expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="summary"'))
+        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="source target"'))
+        self._verify_headers(response.headers[1:4], expected_headers)

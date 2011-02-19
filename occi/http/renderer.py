@@ -94,7 +94,7 @@ class HeaderRenderer(Renderer):
     >>> r = HeaderRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Content-Type', 'text/occi'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
+    [('Content-Type', 'text/occi'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
 
     """
     def render(self, objects):
@@ -118,10 +118,16 @@ class HeaderRenderer(Renderer):
             if cat_class == 'category': cat_class = 'action'
             params.append(('class',  cat_class))
 
-            if category.related:
-                params.append(('rel',  category.related))
             if category.title:
                 params.append(('title',  category.title))
+
+            if 'category_discovery' in obj.render_flags:
+                if category.related:
+                    params.append(('rel',  category.related))
+                if category.attributes:
+                    params.append(('attributes',
+                        ' '.join([attr.name for attr in category.unique_attributes])))
+
             category_headers.add(category.term, params)
         [self.headers.append(('Category', h)) for h in category_headers.headers()]
 
@@ -172,7 +178,7 @@ class TextPlainRenderer(HeaderRenderer):
     >>> r.headers
     [('Content-Type', 'text/plain')]
     >>> r.body
-    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nLink: <http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
+    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"\\r\\nLink: <http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
 
     """
     def render(self, objects):
@@ -234,7 +240,7 @@ class TextRenderer(Renderer):
     >>> r.headers
     [('Content-Type', 'text/plain')]
     >>> r.body
-    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; rel="http://schemas.ogf.org/occi/core#resource"; title="Compute Resource"\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
+    'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
     """
     def render(self, objects):
         if isinstance(objects, list) or isinstance(objects, tuple):
