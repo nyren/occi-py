@@ -3,15 +3,20 @@ from utils import unittest
 from occi.server import OCCIServer, DummyBackend
 from occi.http.handler import (HttpRequest, HttpResponse, DiscoveryHandler,
         EntityHandler, CollectionHandler)
+from occi.http.dataobject import LocationTranslator
 from occi.ext.infrastructure import *
 
 
 class HandlerTestCaseBase(unittest.TestCase):
+    BASE_URL = '/api'
 
     def setUp(self):
         # OCCI Server
         server = OCCIServer(backend=DummyBackend())
         self.server = server
+
+        # URL Translator
+        self.translator = LocationTranslator(self.BASE_URL)
 
         # Register Resource types
         server.registry.register(ComputeKind)
@@ -96,6 +101,9 @@ class HandlerTestCaseBase(unittest.TestCase):
 
         self.entity_ids = self.compute_id + self.network_id + self.storage_id + self.link_id
 
+    def _loc(self, entity_id):
+        return self.BASE_URL + '/' + entity_id
+
     def _verify_headers(self, response_headers=[], expected_headers=[]):
         i = 0
         while True:
@@ -141,7 +149,7 @@ class HandlerTestCaseBase(unittest.TestCase):
 class EntityHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(EntityHandlerTestCase, self).setUp()
-        self.handler = EntityHandler(self.server)
+        self.handler = EntityHandler(self.server, translator=self.translator)
 
     def _get(self, entity_id=None, accept_header=None):
         entity_id = entity_id or self.compute_id[0]
@@ -170,16 +178,18 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_get__text_urilist(self):
         response = self._get(accept_header='text/uri-list')
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
-        self.assertEqual(response.body[:44], self.compute_id[0])
+        self.assertEqual(response.body[:44+len(self.BASE_URL)+1], self._loc(self.compute_id[0]))
 
     def test_get__text_any(self):
         response = self._get(accept_header='text/*, */*;q=0.1')
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (self.network_id[0], self.link_id[0]))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (self.storage_id[0], self.link_id[1]))
-        expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self.compute_id[0])
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
+            self._loc(self.network_id[0]), self._loc(self.link_id[0])))
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
+            self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
+        expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.compute_id[0]))
         expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory="%s"' % (5.0/3))
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
@@ -227,7 +237,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self.compute_id[1])
+        expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.compute_id[1]))
         expected_body.append('X-OCCI-Attribute: title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores="3"')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed="3.26"')
@@ -260,7 +270,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
 class CollectionHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(CollectionHandlerTestCase, self).setUp()
-        self.handler = CollectionHandler(self.server)
+        self.handler = CollectionHandler(self.server, translator=self.translator)
 
     def _get(self, path='', headers=[], body=''):
         request = HttpRequest(headers, body)
@@ -279,7 +289,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         expected_headers = []
         for entity_id in self.entity_ids:
-            expected_headers.append(('X-OCCI-Location', entity_id))
+            expected_headers.append(('X-OCCI-Location', self._loc(entity_id)))
         self._verify_headers(response.headers[1:], expected_headers)
 
     def test_get_all_text_any(self):
@@ -289,7 +299,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         expected_body = []
         for entity_id in self.entity_ids:
-            expected_body.append(entity_id)
+            expected_body.append(self._loc(entity_id))
         self._verify_body(response.body, expected_body)
 
     def test_get_all_text_plain(self):
@@ -299,14 +309,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         expected_body = []
         for entity_id in self.entity_ids:
-            expected_body.append('X-OCCI-Location: %s' % entity_id)
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_location(self):
         response = self._get(ComputeKind.location, headers=[('accept', 'text/plain')])
         expected_body = []
         for entity_id in self.compute_id:
-            expected_body.append('X-OCCI-Location: %s' % entity_id)
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_category(self):
@@ -315,7 +325,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         response = self._get('', headers=request_headers)
         expected_body = []
         for entity_id in self.compute_id:
-            expected_body.append('X-OCCI-Location: %s' % entity_id)
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_attr(self):
@@ -325,14 +335,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         response = self._get('', headers=request_headers)
 
         expected_body = []
-        expected_body.append('X-OCCI-Location: %s' % self.compute_id[1])
+        expected_body.append('X-OCCI-Location: %s' % self._loc(self.compute_id[1]))
         self._verify_body(response.body, expected_body)
 
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(DiscoveryHandlerTestCase, self).setUp()
-        self.handler = DiscoveryHandler(self.server)
+        self.handler = DiscoveryHandler(self.server, translator=self.translator)
 
     def test_get(self):
         headers = [('Accept', 'text/occi')]
