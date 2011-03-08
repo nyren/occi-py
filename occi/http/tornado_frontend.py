@@ -1,11 +1,35 @@
 import tornado.web
+import tornado.httpserver
+import tornado.ioloop
 
 import occi
 from occi.http.handler import HttpRequest, EntityHandler, CollectionHandler, DiscoveryHandler
+from occi.http import HttpServer, HttpClient
 
-class OCCIHandler(tornado.web.RequestHandler):
+class TornadoHttpServer(HttpServer):
+    def __init__(self, *args, **kwargs):
+        super(TornadoHttpServer, self).__init__(*args, **kwargs)
+
+        self.application = tornado.web.Application([
+            (self.base_path + r"/-/", TornadoRequestHandler,
+                dict(handler=DiscoveryHandler(self.server))),
+            (self.base_path + r"/", TornadoRequestHandler,
+                dict(handler=CollectionHandler(self.server), args=[''])),
+            (self.base_path + r"/(.+/)", TornadoRequestHandler,
+                dict(handler=CollectionHandler(self.server))),
+            (self.base_path + r"/(.+[^/])", TornadoRequestHandler,
+                dict(handler=EntityHandler(self.server))),
+            ])
+
+    def run(self):
+        http_server = tornado.httpserver.HTTPServer(self.application)
+        http_server.listen(self.port, self.address or '')
+        tornado.ioloop.IOLoop.instance().start()
+
+class TornadoRequestHandler(tornado.web.RequestHandler):
+    """Tornado RequestHandler for OCCI."""
     def __init__(self, application, request, handler=None, args=None):
-        super(OCCIHandler, self).__init__(application, request)
+        super(TornadoRequestHandler, self).__init__(application, request)
         self.handler = handler
         self.args = args
 
@@ -28,7 +52,7 @@ class OCCIHandler(tornado.web.RequestHandler):
             self.set_header(name, value)
 
         # Set Server header
-        self.set_header('Server', 'occi-py/%s OCCI/1.1' % occi.version)
+        self.set_header('Server', occi.http.version_string)
 
         # Response Body
         self.write(response.body)
@@ -42,27 +66,14 @@ class OCCIHandler(tornado.web.RequestHandler):
     def delete(self, *args):
         self._handle_request('delete', *args)
 
-from occi.server import OCCIServer, DummyBackend
-from occi.ext.infrastructure import *
-server = OCCIServer(backend=DummyBackend())
-server.registry.register(ComputeKind)
-server.registry.register(StorageKind)
-server.registry.register(StorageLinkKind)
-
-application = tornado.web.Application([
-    (r"/api/-/", OCCIHandler, dict(handler=DiscoveryHandler(server))),
-    (r"/api/", OCCIHandler, dict(handler=CollectionHandler(server), args=[''])),
-    (r"/api/(.+/)", OCCIHandler, dict(handler=CollectionHandler(server))),
-    (r"/api/(.+[^/])", OCCIHandler, dict(handler=EntityHandler(server))),
-    ])
 
 if __name__ == '__main__':
-    import tornado.httpserver
-    import tornado.ioloop
-    import tornado.options
-    from tornado.options import define, options
-    define("port", default=8888, help="run on the given port", type=int)
-    tornado.options.parse_command_line()
-    http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(options.port)
-    tornado.ioloop.IOLoop.instance().start()
+    from occi.server import OCCIServer, DummyBackend
+    from occi.ext.infrastructure import *
+    server = OCCIServer(backend=DummyBackend())
+    server.registry.register(ComputeKind)
+    server.registry.register(StorageKind)
+    server.registry.register(StorageLinkKind)
+
+    http_server = TornadoHttpServer(server) #, base_url='/api')
+    http_server.run()
