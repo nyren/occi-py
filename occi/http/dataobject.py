@@ -1,3 +1,5 @@
+import urlparse
+
 from occi.core import Category, Kind, Resource, Link, Action
 
 class DataObject(object):
@@ -14,15 +16,17 @@ class DataObject(object):
         pass
 
     def __init__(self, categories=None, attributes=None, links=None,
-            location=None):
+            location=None, translator=None):
         self.categories = categories or []
         self.links = links or []
         self.attributes = attributes or []
         self.location = location
+
+        self.translator = translator or LocationTranslator('')
         self.parse_flags = {}
         self.render_flags = {}
 
-    def load_from_entity(self, entity, id2location=None, convert_attr=False):
+    def load_from_entity(self, entity, convert_attr=False):
         """Load `DataObject` with the contents of the specified Entity instance.
 
         >>> from occi.ext.infrastructure import *
@@ -38,33 +42,32 @@ class DataObject(object):
         >>> link.target = storage
         >>> link.set_occi_attributes([('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
         >>> compute.links.append(link)
-        >>> d = DataObject()
+        >>> d = DataObject(translator=LocationTranslator('/api/'))
         >>> d.load_from_entity(compute, convert_attr=True)
         >>> d.location
-        'compute/123'
+        '/api/compute/123'
         >>> d.categories
         [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> d.attributes
         [('occi.compute.speed', '2.33')]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
-        [('storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('compute/123?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
+        [('/api/storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('/api/compute/123?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
-        [('link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
+        [('/api/link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
 
         """
-        id2location = id2location or (lambda x: x)
         self.categories = entity.list_occi_categories()
         self.attributes = entity.get_occi_attributes(convert=convert_attr)
-        self.location = id2location(entity.id)
+        self.location = self.translator.id2location(entity.id)
 
         # Links
         if isinstance(entity, Resource):
             for link in entity.links:
                 l = LinkRepr(
-                        target_location=id2location(link.target.id),
+                        target_location=self.translator.id2location(link.target.id),
                         target_categories=link.target.list_occi_categories(),
                         target_title=link.target.get_occi_attribute('title'),
-                        link_location=id2location(link.id))
+                        link_location=self.translator.id2location(link.id))
                 link_attributes = link.get_occi_attributes(
                         convert=convert_attr,
                         exclude=('source', 'target'))
@@ -82,20 +85,17 @@ class DataObject(object):
                     target_title=action.title)
             self.links.append(l)
 
-    def save_to_entity(self, entity=None, location2id=None, category_registry=None,
+    def save_to_entity(self, entity=None, category_registry=None,
             validate_attr=True, save_links=False):
         """Save the `DataObject` contents into an Entity instance.
 
         >>> from occi.ext.infrastructure import *
-        >>> d = DataObject()
-        >>> d.location = 'compute/123'
-        >>> #d.categories = [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
+        >>> d = DataObject(translator=LocationTranslator('/api'))
+        >>> d.location = '/api/compute/123'
         >>> d.categories = [ComputeKind]
         >>> d.attributes = [('occi.compute.speed', '2.33')]
-        >>> #l = LinkRepr(target_location='storage/234', target_categories=[Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')])
-        >>> l = LinkRepr(target_location='storage/234', target_categories=[StorageKind])
-        >>> l.link_location = 'link/storage/345'
-        >>> #l.link_categories = [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
+        >>> l = LinkRepr(target_location='/api/storage/234', target_categories=[StorageKind])
+        >>> l.link_location = '/api/link/storage/345'
         >>> l.link_categories = [StorageLinkKind]
         >>> l.link_attributes = [('occi.storagelink.deviceid', 'ide:0:1')]
         >>> d.links.append(l)
@@ -113,8 +113,6 @@ class DataObject(object):
         >>> entity.links[0].target.get_occi_attributes()
         []
         """
-
-        location2id = location2id or (lambda x: x)
 
         # Resolve categories
         try:
@@ -148,7 +146,7 @@ class DataObject(object):
                 target = t_kind.entity_type(t_kind, t_mixins)
                 if not isinstance(target, Resource):
                     raise self.Invalid('Link target must be a Resource type')
-                target.id = location2id(link_repr.target_location)
+                target.id = self.translator.location2id(link_repr.target_location)
 
                 # Initialise Link instance
                 try:
@@ -160,11 +158,11 @@ class DataObject(object):
                 link = l_kind.entity_type(l_kind, l_mixins)
                 if not isinstance(link, Link):
                     raise self.Invalid('Relation must be a Link type')
-                link.id = location2id(link_repr.link_location)
+                link.id = self.translator.location2id(link_repr.link_location)
                 link.target = target
                 default_attr = [
-                        ('source', self.location),
-                        ('target', link_repr.target_location)
+                        ('source', self.translator.location2id(self.location)),
+                        ('target', self.translator.location2id(link_repr.target_location))
                 ]
                 link.set_occi_attributes(
                         default_attr + link_repr.link_attributes,
@@ -197,7 +195,7 @@ class DataObject(object):
 
         return kind, mixins
 
-    def save_as_action(self, location2id=None, category_registry=None):
+    def save_as_action(self, category_registry=None):
         """Save the `DataObject` contents as an Action instance.
 
         >>> from occi.ext.infrastructure import *
@@ -214,8 +212,6 @@ class DataObject(object):
         Traceback (most recent call last):
         Invalid: "foo": Unknown parameter
         """
-
-        location2id = location2id or (lambda x: x)
 
         # Resolve category
         if len(self.categories) != 1:
@@ -249,10 +245,24 @@ class LinkRepr(object):
 
 class LocationTranslator(object):
     """Translates between Entity ID and Location URL"""
-    def from_location(self, location):
-        return entity_id
-    def to_location(self, entity_id):
-        return location
+    def __init__(self, base_url):
+        self.base_url = base_url.rstrip('/')
+        # Parse base URL and extract the base path
+        t = urlparse.urlparse(self.base_url)
+        self.base_path = t.path.rstrip('/')
+
+    def id2location(self, entity_id, path_only=False):
+        if path_only:
+            return '%s/%s' % (self.base_path, entity_id)
+        return '%s/%s' % (self.base_url, entity_id)
+
+    def location2id(self, location):
+        i = 0
+        if location.startswith(self.base_url):
+            i = len(self.base_url)
+        elif location.startswith(self.base_path):
+            i = len(self.base_path)
+        return location[i:].lstrip('/')
 
 if __name__ == "__main__":
     import doctest
