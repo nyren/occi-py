@@ -113,8 +113,7 @@ class DummyBackend(ServerBackend):
             skip = False
             # Filter on id_prefix
             if id_prefix:
-                t = entity_id.lstrip(id_prefix)
-                if t == entity_id:
+                if not entity_id.startswith(id_prefix + '/'):
                     continue
 
             # Filter on Categories
