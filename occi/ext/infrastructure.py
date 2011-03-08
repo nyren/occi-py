@@ -109,6 +109,7 @@ IPNetworkInterfaceMixin = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/oc
             Attribute('occi.networkinterface.allocation', required=True, mutable=True),
         )
 )
+
 #
 # Storage Kind
 # ============

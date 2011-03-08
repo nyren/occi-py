@@ -75,5 +75,5 @@ if __name__ == '__main__':
     server.registry.register(StorageKind)
     server.registry.register(StorageLinkKind)
 
-    http_server = TornadoHttpServer(server, base_url='/api')
+    http_server = TornadoHttpServer(server, base_url='http://localhost:8000/api')
     http_server.run()

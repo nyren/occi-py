@@ -246,9 +246,8 @@ class LinkRepr(object):
 class LocationTranslator(object):
     """Translates between Entity ID and Location URL"""
     def __init__(self, base_url):
-        self.base_url = base_url.rstrip('/')
-        # Parse base URL and extract the base path
-        t = urlparse.urlparse(self.base_url)
+        t = urlparse.urlparse(base_url.rstrip('/'))
+        self.base_url = t.geturl()
         self.base_path = t.path.rstrip('/')
 
     def id2location(self, entity_id, path_only=False):
