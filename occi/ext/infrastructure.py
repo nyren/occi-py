@@ -15,6 +15,16 @@ ComputeStopActionCategory = Category('stop', 'http://schemas.ogf.org/occi/infras
         attributes=(
             Attribute('method', required=False, mutable=True),
         ))
+ComputeRestartActionCategory = Category('restart', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Restart Compute Resource',
+        attributes=(
+            Attribute('method', required=False, mutable=True),
+        ))
+ComputeSuspendActionCategory = Category('suspend', 'http://schemas.ogf.org/occi/infrastructure/compute/action#',
+        title='Suspend Compute Resource',
+        attributes=(
+            Attribute('method', required=False, mutable=True),
+        ))
 
 ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Compute Resource',
@@ -32,12 +42,19 @@ ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         actions=(
             ComputeStartActionCategory,
             ComputeStopActionCategory,
+            ComputeRestartActionCategory,
+            ComputeSuspendActionCategory,
         ),
 )
 
 #
 # Network Kind
 # ============
+
+NetworkUpActionCategory = Category('up', 'http://schemas.ogf.org/occi/infrastructure/network/action#',
+        title='Bring up Network Resource')
+NetworkDownActionCategory = Category('down', 'http://schemas.ogf.org/occi/infrastructure/network/action#',
+        title='Take down Network Resource')
 
 NetworkKind = Kind('network', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Network Resource',
@@ -46,16 +63,20 @@ NetworkKind = Kind('network', 'http://schemas.ogf.org/occi/infrastructure#',
         location='network/',
         attributes=(
             IntAttribute('occi.network.vlan', required=False, mutable=True),
-            Attribute('occi.network.vlan', required=False, mutable=True),
+            Attribute('occi.network.label', required=False, mutable=True),
             Attribute('occi.network.state', required=False, mutable=False),
-        )
+        ),
+        actions=(
+            NetworkUpActionCategory,
+            NetworkDownActionCategory,
+        ),
 )
 
 #
 # IPNetwork Mixin
 # ===============
 
-IPNetworkMixin = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure#',
+IPNetworkMixin = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure/network#',
         title='IPNetworking Mixin',
         location='ipnetwork/',
         attributes=(
@@ -69,6 +90,25 @@ IPNetworkMixin = Mixin('ipnetwork', 'http://schemas.ogf.org/occi/infrastructure#
 # Storage Kind
 # ============
 
+StorageOnlineActionCategory = Category('online',
+        'http://schemas.ogf.org/occi/infrastructure/storage/action#',
+        title='Bring Storage Resource online')
+StorageOfflineActionCategory = Category('offline',
+        'http://schemas.ogf.org/occi/infrastructure/storage/action#',
+        title='Bring Storage Resource offline')
+StorageBackupActionCategory = Category('backup',
+        'http://schemas.ogf.org/occi/infrastructure/storage/action#',
+        title='Backup Storage Resource')
+StorageSnapshotActionCategory = Category('snapshot',
+        'http://schemas.ogf.org/occi/infrastructure/storage/action#',
+        title='Take snapshot of Storage Resource')
+StorageResizeActionCategory = Category('resize',
+        'http://schemas.ogf.org/occi/infrastructure/storage/action#',
+        title='Resize Storage Resource',
+        attributes=(
+            Attribute('size', required=True, mutable=True),
+        ))
+
 StorageKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
         title='Storage Resource',
         related=ResourceKind,
@@ -77,7 +117,14 @@ StorageKind = Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#',
         attributes=(
             FloatAttribute('occi.storage.size', required=True, mutable=True),
             Attribute('occi.storage.state', required=False, mutable=False),
-        )
+        ),
+        actions=(
+            StorageOnlineActionCategory,
+            StorageOfflineActionCategory,
+            StorageBackupActionCategory,
+            StorageSnapshotActionCategory,
+            StorageResizeActionCategory,
+        ),
 )
 
 #
@@ -90,8 +137,8 @@ NetworkInterfaceKind = Kind('networkinterface', 'http://schemas.ogf.org/occi/inf
         entity_type=Link,
         location='link/networkinterface/',
         attributes=(
-            Attribute('occi.networkinterface.interface', required=True, mutable=True),
-            Attribute('occi.networkinterface.mac', required=True, mutable=True),
+            Attribute('occi.networkinterface.interface', required=False, mutable=True),
+            Attribute('occi.networkinterface.mac', required=False, mutable=True),
             Attribute('occi.networkinterface.state', required=False, mutable=False),
         )
 )
@@ -104,7 +151,7 @@ IPNetworkInterfaceMixin = Mixin('ipnetworkinterface', 'http://schemas.ogf.org/oc
         title='IPNetworkInterface Link',
         location='link/ipnetworkinterface/',
         attributes=(
-            Attribute('occi.networkinterface.ip', required=True, mutable=True),
+            Attribute('occi.networkinterface.ip', required=False, mutable=True),
             Attribute('occi.networkinterface.gateway', required=False, mutable=True),
             Attribute('occi.networkinterface.allocation', required=True, mutable=True),
         )

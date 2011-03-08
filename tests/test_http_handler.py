@@ -185,7 +185,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
             self._loc(self.network_id[0]), self._loc(self.link_id[0])))
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
             self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
