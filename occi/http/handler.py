@@ -292,7 +292,7 @@ class CollectionHandler(HandlerBase):
                     categories.append(self.server.registry.lookup_id(category))
                 except Category.DoesNotExist as e:
                     return hrc.BAD_REQUEST(e)
-            # FIXME - what about converting value to indicated type
+            # FIXME - what about converting value to indicated type?
             attributes = dao.attributes
 
         # Retrieve resource instances from backend
@@ -338,10 +338,12 @@ class CollectionHandler(HandlerBase):
                     category_registry=self.server.registry))
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
+        except Entity.EntityError as e:
+            return hrc.BAD_REQUEST(e)
 
         # Save all entities using a single backend operation
         try:
-            id_list = self._save_entities(entities, id_prefix=path, user=user)
+            id_list = self._save_entities(entities, id_prefix=path, user=request.user)
         except HttpRequestError as e:
             return e.response
 

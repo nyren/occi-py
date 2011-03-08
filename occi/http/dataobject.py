@@ -247,6 +247,12 @@ class LinkRepr(object):
         self.link_categories = link_categories or []
         self.link_attributes = link_attributes or []
 
+class LocationTranslator(object):
+    """Translates between Entity ID and Location URL"""
+    def from_location(self, location):
+        return entity_id
+    def to_location(self, entity_id):
+        return location
 
 if __name__ == "__main__":
     import doctest
