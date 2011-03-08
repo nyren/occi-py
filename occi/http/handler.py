@@ -65,8 +65,9 @@ hrc = HttpResponseCode()
 class HandlerBase(object):
     """HTTP handler base class."""
 
-    def __init__(self, server):
-        self.server = server
+    def __init__(self, server, translator=None):
+        self.server = server            # OCCIServer
+        self.translator = translator    # LocationTranslator
 
     def _request_init(self, request):
         """Parse request and initialize response renderer."""
@@ -157,7 +158,7 @@ class EntityHandler(HandlerBase):
         except HttpRequestError as e:
             return e.response
 
-        dao = DataObject()
+        dao = DataObject(translator=self.translator)
         dao.load_from_entity(entity)
         renderer.render(dao)
 
@@ -185,6 +186,7 @@ class EntityHandler(HandlerBase):
         elif len(parser.objects) > 1:
             return hrc.BAD_REQUEST('More than one action instance specified')
         dao = parser.objects[0]
+        dao.translator = self.translator
 
         # Create Action instance
         try:
@@ -229,6 +231,7 @@ class EntityHandler(HandlerBase):
         elif len(parser.objects) > 1:
             return hrc.BAD_REQUEST('More than one resource instance specified')
         dao = parser.objects[0]
+        dao.translator = self.translator
 
         # Load entity object from backend
         try:
@@ -287,6 +290,7 @@ class CollectionHandler(HandlerBase):
         # Category and attribute filters
         if parser.objects:
             dao = parser.objects[0]
+            dao.translator = self.translator
             for category in dao.categories:
                 try:
                     categories.append(self.server.registry.lookup_id(category))
@@ -305,7 +309,7 @@ class CollectionHandler(HandlerBase):
         # Render response
         objects = []
         for entity in entities:
-            dao = DataObject()
+            dao = DataObject(translator=self.translator)
             dao.load_from_entity(entity)
             objects.append(dao)
         renderer.render(objects)
@@ -334,6 +338,7 @@ class CollectionHandler(HandlerBase):
         entities = []
         try:
             for dao in parser.objects:
+                dao.translator = self.translator
                 entities.append(dao.save_to_entity(
                     category_registry=self.server.registry))
         except DataObject.Invalid as e:
@@ -350,7 +355,8 @@ class CollectionHandler(HandlerBase):
         # Response is a list of locations
         dao_list = []
         for entity_id in id_list:
-            dao_list.append(DataObject(location=entity_id))
+            dao_list.append(DataObject(translator=self.translator,
+                location=entity_id))
 
         # Render response
         renderer.render(dao_list)
@@ -382,7 +388,8 @@ class DiscoveryHandler(HandlerBase):
         except HttpRequestError as e:
             return e.response
 
-        dao = DataObject(categories=self.server.registry.all())
+        dao = DataObject(translator=self.translator,
+                categories=self.server.registry.all())
         dao.render_flags['category_discovery'] = True
 
         # Render response

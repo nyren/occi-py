@@ -12,13 +12,13 @@ class TornadoHttpServer(HttpServer):
 
         self.application = tornado.web.Application([
             (self.base_path + r"/-/", TornadoRequestHandler,
-                dict(handler=DiscoveryHandler(self.server))),
+                dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
             (self.base_path + r"/", TornadoRequestHandler,
-                dict(handler=CollectionHandler(self.server), args=[''])),
+                dict(handler=CollectionHandler(self.server, translator=self.translator), args=[''])),
             (self.base_path + r"/(.+/)", TornadoRequestHandler,
-                dict(handler=CollectionHandler(self.server))),
+                dict(handler=CollectionHandler(self.server, translator=self.translator))),
             (self.base_path + r"/(.+[^/])", TornadoRequestHandler,
-                dict(handler=EntityHandler(self.server))),
+                dict(handler=EntityHandler(self.server, translator=self.translator))),
             ])
 
     def run(self):

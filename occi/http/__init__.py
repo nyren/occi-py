@@ -1,8 +1,7 @@
-import urlparse
-
 import occi
 from occi.http.parser import get_parser, register_parser, unregister_parser
 from occi.http.renderer import get_renderer, register_renderer, unregister_renderer
+from occi.http.dataobject import LocationTranslator
 
 # HTTP version string for use in Server/Client headers
 version_string = 'occi-py/%s OCCI/%s' % (occi.version, occi.http_version)
@@ -15,10 +14,8 @@ class HttpServer(object):
         self.address = listen_address
         self.port = listen_port or 8000
         self.base_url = base_url or '/'
-
-        # Parse base URL and extract the base path
-        t = urlparse.urlparse(self.base_url)
-        self.base_path = t.path.rstrip('/')
+        self.translator = LocationTranslator(self.base_url)
+        self.base_path = self.translator.base_path
 
     def run(self):
         raise NotImplementedError
