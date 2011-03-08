@@ -63,10 +63,13 @@ class HttpResponseCode(object):
 hrc = HttpResponseCode()
 
 class HandlerBase(object):
+    """HTTP handler base class."""
+
     def __init__(self, server):
         self.server = server
 
     def _request_init(self, request):
+        """Parse request and initialize response renderer."""
         try:
             parser = get_parser(request.content_type)
             parser.parse(request.headers, request.body)
@@ -144,6 +147,8 @@ class HandlerBase(object):
             raise HttpRequestError(hrc.SERVER_ERROR())
 
 class EntityHandler(HandlerBase):
+    """HTTP handler for existing Entity instances."""
+
     def get(self, request, entity_id):
         """Retrieve a resource instance."""
         try:
@@ -257,6 +262,8 @@ class EntityHandler(HandlerBase):
         return hrc.ALL_OK()
 
 class CollectionHandler(HandlerBase):
+    """HTTP handler for collections."""
+
     def get(self, request, path):
         """Get the collection of resource instances under the specified path."""
         # Parse request
@@ -363,6 +370,8 @@ class CollectionHandler(HandlerBase):
         return hrc.NOT_IMPLEMENTED()
 
 class DiscoveryHandler(HandlerBase):
+    """HTTP handler for the OCCI discovery interface."""
+
     def get(self, request):
         """List all Category instance registered in the system"""
         # Parse request

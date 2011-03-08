@@ -137,6 +137,7 @@ class HandlerTestCaseBase(unittest.TestCase):
             return 'Category: ' + value
         return ('Category', value)
 
+
 class EntityHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(EntityHandlerTestCase, self).setUp()
@@ -255,6 +256,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         response = self.handler.delete(request, 'blah/not/found')
         self.assertEqual(response.status, 404)
 
+
 class CollectionHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(CollectionHandlerTestCase, self).setUp()
@@ -325,6 +327,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append('X-OCCI-Location: %s' % self.compute_id[1])
         self._verify_body(response.body, expected_body)
+
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
