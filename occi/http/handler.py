@@ -355,14 +355,14 @@ class CollectionHandler(HandlerBase):
         # Response is a list of locations
         dao_list = []
         for entity_id in id_list:
-            dao_list.append(DataObject(translator=self.translator,
-                location=entity_id))
+            dao_list.append(DataObject(
+                location=self.translator.id2location(entity_id)))
 
         # Render response
         renderer.render(dao_list)
 
         # Set Location header to the first ID
-        renderer.headers.append(('Location', id_list[0]))
+        renderer.headers.append(('Location', self.translator.id2location(id_list[0])))
 
         return HttpResponse(renderer.headers, renderer.body)
 
