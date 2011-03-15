@@ -76,8 +76,10 @@ class HttpAttributeHeaders(HttpHeadersBase):
 
     def _to_string(self, header):
         k, v = header
-        if isinstance(v, float) or isinstance(v, int):
+        if isinstance(v, int):
             value_str = str(v)
+        if isinstance(v, float):
+            value_str = '%.2f' % v
         elif isinstance(v, bool):
             value_str = str(v).lower()
         else:
