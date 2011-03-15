@@ -76,7 +76,13 @@ class HttpAttributeHeaders(HttpHeadersBase):
 
     def _to_string(self, header):
         k, v = header
-        return '%s="%s"' % (k, escape_quotes(str(v)))
+        if isinstance(v, float) or isinstance(v, int):
+            value_str = str(v)
+        elif isinstance(v, bool):
+            value_str = str(v).lower()
+        else:
+            value_str = '"%s"' % escape_quotes(str(v))
+        return '%s=%s' % (k, value_str)
 
 class HttpWebHeadersBase(HttpHeadersBase):
     """Base class for headers like Web Link/Category which have multiple
