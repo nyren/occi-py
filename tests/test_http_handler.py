@@ -191,8 +191,23 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
             self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.compute_id[0]))
         expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
-        expected_body.append('X-OCCI-Attribute: occi.compute.memory="%s"' % (5.0/3))
+        expected_body.append('X-OCCI-Attribute: occi.compute.memory=%s' % (5.0/3))
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
+        self._verify_body(response.body, expected_body)
+
+    def test_get_link(self):
+        response = self._get(entity_id=self.link_id[1],
+                accept_header='text/plain')
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        expected_body = []
+        expected_body.append(self._category_header(StorageLinkKind))
+        expected_body.append('X-OCCI-Attribute: title="Boot drive"')
+        expected_body.append('X-OCCI-Attribute: source="%s"' % self._loc(self.compute_id[0]))
+        expected_body.append('X-OCCI-Attribute: target="%s"' % self._loc(self.storage_id[0]))
+        #expected_body.append('X-OCCI-Attribute: source="%s"' % self.compute_id[0])
+        #expected_body.append('X-OCCI-Attribute: target="%s"' % self.storage_id[0])
+        expected_body.append('X-OCCI-Attribute: occi.storagelink.deviceid="ide:0:0"')
+        expected_body.append('X-OCCI-Attribute: occi.storagelink.state="active"')
         self._verify_body(response.body, expected_body)
 
     def test_post(self):
@@ -239,9 +254,9 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.compute_id[1]))
         expected_body.append('X-OCCI-Attribute: title="Another \\" VM"')
-        expected_body.append('X-OCCI-Attribute: occi.compute.cores="3"')
-        expected_body.append('X-OCCI-Attribute: occi.compute.speed="3.26"')
-        expected_body.append('X-OCCI-Attribute: occi.compute.memory="2.0"')
+        expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
+        expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
+        expected_body.append('X-OCCI-Attribute: occi.compute.memory=2.0')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="active"')
         self._verify_body(get_response.body, expected_body)
 
@@ -272,18 +287,27 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         super(CollectionHandlerTestCase, self).setUp()
         self.handler = CollectionHandler(self.server, translator=self.translator)
 
-    def _get(self, path='', headers=[], body=''):
+    def _request(self, verb='get', path='', headers=[], body=''):
         request = HttpRequest(headers, body)
-        response = self.handler.get(request, path)
+        response = getattr(self.handler, verb)(request, path)
         return response
 
+    def _get(self, **kwargs):
+        return self._request(verb='get', **kwargs)
+    def _post(self, **kwargs):
+        return self._request(verb='post', **kwargs)
+    def _put(self, **kwargs):
+        return self._request(verb='put', **kwargs)
+    def _delete(self, **kwargs):
+        return self._request(verb='delete', **kwargs)
+
     def test_get_all_default(self):
-        response = self._get('')
+        response = self._get()
         self.assertEqual(response.status, 200)
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
 
     def test_get_all_text_occi(self):
-        response = self._get('', headers=[('accept', 'text/occi')])
+        response = self._get(headers=[('accept', 'text/occi')])
         self.assertEqual(response.status, 200)
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
 
@@ -293,7 +317,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self._verify_headers(response.headers[1:], expected_headers)
 
     def test_get_all_text_any(self):
-        response = self._get('', headers=[('accept', 'text/*')])
+        response = self._get(headers=[('accept', 'text/*')])
         self.assertEqual(response.status, 200)
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
 
@@ -303,7 +327,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self._verify_body(response.body, expected_body)
 
     def test_get_all_text_plain(self):
-        response = self._get('', headers=[('accept', 'text/plain')])
+        response = self._get(headers=[('accept', 'text/plain')])
         self.assertEqual(response.status, 200)
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
 
@@ -313,7 +337,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_location(self):
-        response = self._get(ComputeKind.location, headers=[('accept', 'text/plain')])
+        response = self._get(path=ComputeKind.location, headers=[('accept', 'text/plain')])
         expected_body = []
         for entity_id in self.compute_id:
             expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
@@ -322,7 +346,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_get_filter_compute_category(self):
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
-        response = self._get('', headers=request_headers)
+        response = self._get(headers=request_headers)
         expected_body = []
         for entity_id in self.compute_id:
             expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
@@ -332,12 +356,61 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
-        response = self._get('', headers=request_headers)
+        response = self._get(headers=request_headers)
 
         expected_body = []
         expected_body.append('X-OCCI-Location: %s' % self._loc(self.compute_id[1]))
         self._verify_body(response.body, expected_body)
 
+    def test_post_resource(self):
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('content-type', 'text/occi'))
+        request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        request_headers.append(('x-occi-attribute', 'occi.compute.speed=2.66'))
+        request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
+        response = self._post(headers=request_headers)
+
+        # Assume success
+        self.assertEqual(response.status, 200)
+
+        # Location of created object
+        location = None
+        for header, value in response.headers:
+            if header.lower() == 'location':
+                location = value
+        self.assertNotEqual(location, None)
+
+        expected_body = []
+        expected_body.append('X-OCCI-Location: %s' % location)
+        self._verify_body(response.body, expected_body)
+
+        return location
+
+    def test_post_link(self):
+        source = self.test_post_resource()
+        target = self._loc(self.storage_id[0])
+
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('content-type', 'text/occi'))
+        request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
+        request_headers.append(('x-occi-attribute', 'source="%s"' % source))
+        request_headers.append(('x-occi-attribute', 'target="%s"' % target))
+        response = self._post(headers=request_headers)
+
+        # Assume success
+        print response.body
+        self.assertEqual(response.status, 200)
+
+        # Location of created object
+        location = None
+        for header, value in response.headers:
+            if header.lower() == 'location':
+                location = value
+        self.assertNotEqual(location, None)
+
+        expected_body = []
+        expected_body.append('X-OCCI-Location: %s' % location)
+        self._verify_body(response.body, expected_body)
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
