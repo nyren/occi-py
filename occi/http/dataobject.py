@@ -49,13 +49,17 @@ class DataObject(object):
         >>> d.categories
         [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> d.attributes
-        [('occi.compute.speed', '2.33')]
+        [('occi.compute.speed', 2.3333333333333335)]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
         [('/api/storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('/api/compute/123?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
         [('/api/link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
 
         """
+        # Set location translator for Entity instance
+        entity.occi_set_translator(self.translator)
+
+        # Get Entity Kind, Mixins, Attributes and ID
         self.categories = entity.list_occi_categories()
         self.attributes = entity.get_occi_attributes(convert=convert_attr)
         self.location = self.translator.id2location(entity.id)
@@ -132,6 +136,9 @@ class DataObject(object):
                 raise self.Invalid('Cannot change Kind of existing Entity')
             [entity.add_occi_mixin(mixin) for mixin in mixins]
 
+        # Set location translator for Entity instance
+        entity.occi_set_translator(self.translator)
+
         # Load attributes
         entity.set_occi_attributes(self.attributes, validate=validate_attr)
 
@@ -144,6 +151,7 @@ class DataObject(object):
                 t_kind, t_mixins = self._resolve_categories(
                         link_repr.target_categories, category_registry)
                 target = t_kind.entity_type(t_kind, t_mixins)
+                target.occi_set_translator(self.translator)
                 if not isinstance(target, Resource):
                     raise self.Invalid('Link target must be a Resource type')
                 target.id = self.translator.location2id(link_repr.target_location)
@@ -156,13 +164,14 @@ class DataObject(object):
                     l_kind = LinkKind
                     l_mixins = []
                 link = l_kind.entity_type(l_kind, l_mixins)
+                link.occi_set_translator(self.translator)
                 if not isinstance(link, Link):
                     raise self.Invalid('Relation must be a Link type')
                 link.id = self.translator.location2id(link_repr.link_location)
                 link.target = target
                 default_attr = [
-                        ('source', self.translator.location2id(self.location)),
-                        ('target', self.translator.location2id(link_repr.target_location))
+                        ('source', self.location),
+                        ('target', link_repr.target_location)
                 ]
                 link.set_occi_attributes(
                         default_attr + link_repr.link_attributes,

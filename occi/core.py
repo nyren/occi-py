@@ -22,45 +22,44 @@ class Attribute(object):
         self.required = required
         self.mutable = mutable
 
-    def from_string(self, s):
+    def to_native(self, s, **kwargs):
         return s
 
-    def to_string(self, v):
-        return str(v)
+    def from_native(self, v, **kwargs):
+        return v
 
     def __repr__(self):
         return "%s('%s', required=%s, mutable=%s)" % (self.__class__.__name__, self.name, self.required, self.mutable)
 
 class IntAttribute(Attribute):
-    def from_string(self, s):
+    def to_native(self, s, **kwargs):
         try:
             return int(s)
         except ValueError:
             raise self.Invalid(self.name, s)
 
 class FloatAttribute(Attribute):
-    def from_string(self, s):
+    def to_native(self, s, **kwargs):
         try:
             return float(s)
         except ValueError:
             raise self.Invalid(self.name, s)
 
-    def to_string(self, v):
-        return '%.2f' % v
-
 class BoolAttribute(Attribute):
-    def from_string(self, s):
-        if s == 'y':
+    def to_native(self, s, **kwargs):
+        if s == 'true':
             return True
-        elif s == 'n':
+        elif s == 'false':
             return False
         else:
             raise self.Invalid(self.name, s)
 
-    def to_string(self, value):
-        if value:
-            return 'y'
-        return 'n'
+class IDAttribute(Attribute):
+    def to_native(self, s, translator=None, **kwargs):
+        return translator.location2id(s)
+
+    def from_native(self, s, translator=None, **kwargs):
+        return translator.id2location(s)
 
 class Category(object):
     """The OCCI Category type."""
@@ -304,7 +303,7 @@ class Action(object):
             except KeyError:
                 pass
             else:
-                self._occi_parameters[attribute.name] = attribute.from_string(value)
+                self._occi_parameters[attribute.name] = attribute.to_native(value)
 
             # Check required parameters
             if attribute.required and attribute.name not in self._occi_parameters:
@@ -376,6 +375,7 @@ class Entity(object):
         self._occi_attributes = {}
         self._occi_actions_available = {}
         self._occi_actions_applicable = {}
+        self._occi_translator = None
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
@@ -422,6 +422,9 @@ class Entity(object):
     def list_occi_categories(self):
         return [self._occi_kind] + self._occi_mixins.values()
 
+    def occi_set_translator(self, translator):
+        self._occi_translator = translator
+
     def get_occi_attribute(self, name):
         """Get single OCCI attribute value."""
         return self._occi_attributes.get(name)
@@ -443,7 +446,8 @@ class Entity(object):
                     pass
                 else:
                     if convert:
-                        value = attribute.to_string(value)
+                        value = attribute.from_native(value,
+                                translator=self._occi_translator)
                     attr_list.append((attribute.name, value))
         return attr_list
 
@@ -497,7 +501,8 @@ class Entity(object):
                     if not validate or attribute.mutable or (
                             attribute.required and attribute.name not in self._occi_attributes):
                         # Convert and save new attibute value
-                        self._occi_attributes[attribute.name] = attribute.from_string(value)
+                        self._occi_attributes[attribute.name] = attribute.to_native(value,
+                                translator=self._occi_translator)
                     else:
                         raise self.ImmutableAttribute(attribute.name)
 
@@ -597,8 +602,8 @@ LinkKind = Kind('link', 'http://schemas.ogf.org/occi/core#',
         title='Link type',
         entity_type=Link,
         attributes=(
-            Attribute('source', required=True, mutable=False),
-            Attribute('target', required=True, mutable=True),
+            IDAttribute('source', required=True, mutable=False),
+            IDAttribute('target', required=True, mutable=True),
         ),
 )
 
