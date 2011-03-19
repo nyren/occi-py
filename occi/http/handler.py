@@ -396,6 +396,10 @@ class DiscoveryHandler(HandlerBase):
         renderer.render(dao)
         return HttpResponse(renderer.headers, renderer.body)
 
+    def post(self, request):
+        """Http POST not valid for the discovery interface."""
+        return hrc.BAD_REQUEST()
+
     def put(self, request):
         """Create a custem Mixin instance"""
         return hrc.NOT_IMPLEMENTED()

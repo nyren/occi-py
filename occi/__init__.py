@@ -1,3 +1,3 @@
 
-version = '0.2'
+version = '0.3'
 http_version = '1.1'
