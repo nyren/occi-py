@@ -56,10 +56,10 @@ class BoolAttribute(Attribute):
 
 class IDAttribute(Attribute):
     def to_native(self, s, translator=None, **kwargs):
-        return translator.location2id(s)
+        return translator.to_native(s)
 
     def from_native(self, s, translator=None, **kwargs):
-        return translator.id2location(s)
+        return translator.from_native(s)
 
 class Category(object):
     """The OCCI Category type."""
@@ -327,6 +327,20 @@ class Action(object):
         return params
     parameters = property(_get_occi_parameters)
 
+class IDTranslator(object):
+    """Translate Entity ID between native (internal) and external
+    representation.
+
+    Extend this class to implement another translation mechanism. Simply
+    override the to_native() and from_native methods.
+
+    The OCCI Http Rendering provides an URL translator suitable for mapping
+    URLs to Entity IDs. See occi.http.URLTranslator.
+    """
+    def to_native(self, ext, **kwargs):
+        return str(ext)
+    def from_native(self, entity_id, **kwargs):
+        return str(entity_id)
 
 class Entity(object):
     """The OCCI Entity (abstract) type.
@@ -375,7 +389,7 @@ class Entity(object):
         self._occi_attributes = {}
         self._occi_actions_available = {}
         self._occi_actions_applicable = {}
-        self._occi_translator = None
+        self._occi_translator = IDTranslator()
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
@@ -432,8 +446,9 @@ class Entity(object):
     def get_occi_attributes(self, convert=False, exclude=()):
         """Get list of OCCI attribute key-value pairs.
 
-        Optionally convert to attribute value from OCCI native format to a
-        string.
+        :keyword convert: If True convert from OCCI native format to external
+            representation.
+        :keyword exclude: A list of attribute names to exclude.
         """
         attr_list = []
         for category in self.list_occi_categories():

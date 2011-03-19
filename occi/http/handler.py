@@ -67,7 +67,7 @@ class HandlerBase(object):
 
     def __init__(self, server, translator=None):
         self.server = server            # OCCIServer
-        self.translator = translator    # LocationTranslator
+        self.translator = translator    # URLTranslator
 
     def _request_init(self, request):
         """Parse request and initialize response renderer."""
@@ -356,13 +356,13 @@ class CollectionHandler(HandlerBase):
         dao_list = []
         for entity_id in id_list:
             dao_list.append(DataObject(
-                location=self.translator.id2location(entity_id)))
+                location=self.translator.from_native(entity_id)))
 
         # Render response
         renderer.render(dao_list)
 
         # Set Location header to the first ID
-        renderer.headers.append(('Location', self.translator.id2location(id_list[0])))
+        renderer.headers.append(('Location', self.translator.from_native(id_list[0])))
 
         return HttpResponse(renderer.headers, renderer.body)
 

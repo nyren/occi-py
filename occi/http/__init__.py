@@ -1,7 +1,7 @@
 import occi
 from occi.http.parser import get_parser, register_parser, unregister_parser
 from occi.http.renderer import get_renderer, register_renderer, unregister_renderer
-from occi.http.dataobject import LocationTranslator
+from occi.http.dataobject import URLTranslator
 
 # HTTP version string for use in Server/Client headers
 version_string = 'occi-py/%s OCCI/%s' % (occi.version, occi.http_version)
@@ -13,7 +13,7 @@ class HttpServer(object):
         self.server = occi_server
         self.address = listen_address
         self.port = listen_port or 8000
-        self.translator = LocationTranslator(base_url or '')
+        self.translator = URLTranslator(base_url or '')
         self.base_url = self.translator.base_url
         self.base_path = self.translator.base_path
 

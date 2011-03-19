@@ -1,6 +1,6 @@
 import urlparse
 
-from occi.core import Category, Kind, Resource, Link, Action
+from occi.core import Category, Kind, Resource, Link, Action, IDTranslator
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -22,11 +22,11 @@ class DataObject(object):
         self.attributes = attributes or []
         self.location = location
 
-        self.translator = translator or LocationTranslator('')
+        self.translator = translator or URLTranslator('')
         self.parse_flags = {}
         self.render_flags = {}
 
-    def load_from_entity(self, entity, convert_attr=False):
+    def load_from_entity(self, entity):
         """Load `DataObject` with the contents of the specified Entity instance.
 
         >>> from occi.ext.infrastructure import *
@@ -42,8 +42,8 @@ class DataObject(object):
         >>> link.target = storage
         >>> link.set_occi_attributes([('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
         >>> compute.links.append(link)
-        >>> d = DataObject(translator=LocationTranslator('/api/'))
-        >>> d.load_from_entity(compute, convert_attr=True)
+        >>> d = DataObject(translator=URLTranslator('/api/'))
+        >>> d.load_from_entity(compute)
         >>> d.location
         '/api/compute/123'
         >>> d.categories
@@ -61,19 +61,18 @@ class DataObject(object):
 
         # Get Entity Kind, Mixins, Attributes and ID
         self.categories = entity.list_occi_categories()
-        self.attributes = entity.get_occi_attributes(convert=convert_attr)
-        self.location = self.translator.id2location(entity.id)
+        self.attributes = entity.get_occi_attributes(convert=True)
+        self.location = self.translator.from_native(entity.id)
 
         # Links
         if isinstance(entity, Resource):
             for link in entity.links:
                 l = LinkRepr(
-                        target_location=self.translator.id2location(link.target.id),
+                        target_location=self.translator.from_native(link.target.id),
                         target_categories=link.target.list_occi_categories(),
                         target_title=link.target.get_occi_attribute('title'),
-                        link_location=self.translator.id2location(link.id))
-                link_attributes = link.get_occi_attributes(
-                        convert=convert_attr,
+                        link_location=self.translator.from_native(link.id))
+                link_attributes = link.get_occi_attributes(convert=True,
                         exclude=('source', 'target'))
                 if link_attributes:
                     l.link_categories = link.list_occi_categories()
@@ -94,7 +93,7 @@ class DataObject(object):
         """Save the `DataObject` contents into an Entity instance.
 
         >>> from occi.ext.infrastructure import *
-        >>> d = DataObject(translator=LocationTranslator('/api'))
+        >>> d = DataObject(translator=URLTranslator('/api'))
         >>> d.location = '/api/compute/123'
         >>> d.categories = [ComputeKind]
         >>> d.attributes = [('occi.compute.speed', '2.33')]
@@ -154,7 +153,7 @@ class DataObject(object):
                 target.occi_set_translator(self.translator)
                 if not isinstance(target, Resource):
                     raise self.Invalid('Link target must be a Resource type')
-                target.id = self.translator.location2id(link_repr.target_location)
+                target.id = self.translator.to_native(link_repr.target_location)
 
                 # Initialise Link instance
                 try:
@@ -167,7 +166,7 @@ class DataObject(object):
                 link.occi_set_translator(self.translator)
                 if not isinstance(link, Link):
                     raise self.Invalid('Relation must be a Link type')
-                link.id = self.translator.location2id(link_repr.link_location)
+                link.id = self.translator.to_native(link_repr.link_location)
                 link.target = target
                 default_attr = [
                         ('source', self.location),
@@ -252,19 +251,19 @@ class LinkRepr(object):
         self.link_categories = link_categories or []
         self.link_attributes = link_attributes or []
 
-class LocationTranslator(object):
+class URLTranslator(IDTranslator):
     """Translates between Entity ID and Location URL"""
     def __init__(self, base_url):
         t = urlparse.urlparse(base_url.rstrip('/'))
         self.base_url = t.geturl()
         self.base_path = t.path.rstrip('/')
 
-    def id2location(self, entity_id, path_only=False):
+    def from_native(self, entity_id, path_only=False):
         if path_only:
             return '%s/%s' % (self.base_path, entity_id)
         return '%s/%s' % (self.base_url, entity_id)
 
-    def location2id(self, location):
+    def to_native(self, location):
         i = 0
         if location.startswith(self.base_url):
             i = len(self.base_url)

@@ -3,7 +3,7 @@ from utils import unittest
 from occi.server import OCCIServer, DummyBackend
 from occi.http.handler import (HttpRequest, HttpResponse, DiscoveryHandler,
         EntityHandler, CollectionHandler)
-from occi.http.dataobject import LocationTranslator
+from occi.http.dataobject import URLTranslator
 from occi.ext.infrastructure import *
 
 
@@ -16,7 +16,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         self.server = server
 
         # URL Translator
-        self.translator = LocationTranslator(self.BASE_URL)
+        self.translator = URLTranslator(self.BASE_URL)
 
         # Register Resource types
         server.registry.register(ComputeKind)
@@ -78,6 +78,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         # Pre-populate backend: Links
         entities = []
         e = NetworkInterfaceKind.entity_type(NetworkInterfaceKind)
+        e.occi_set_translator(self.translator)
         e.add_occi_mixin(IPNetworkInterfaceMixin)
         attrs = [('title', 'Primary Interface'), ('occi.networkinterface.state', 'active')]
         attrs.append(('occi.networkinterface.interface', 'eth0'))
@@ -90,6 +91,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         entities.append(e)
         #
         e = StorageLinkKind.entity_type(StorageLinkKind)
+        e.occi_set_translator(self.translator)
         attrs = [('title', 'Boot drive'), ('occi.storagelink.state', 'active')]
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
         attrs.append(('source', self.compute_id[0]))
@@ -191,7 +193,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
             self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.compute_id[0]))
         expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
-        expected_body.append('X-OCCI-Attribute: occi.compute.memory=%s' % (5.0/3))
+        expected_body.append('X-OCCI-Attribute: occi.compute.memory=1.67')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
         self._verify_body(response.body, expected_body)
 
@@ -256,7 +258,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('X-OCCI-Attribute: title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
-        expected_body.append('X-OCCI-Attribute: occi.compute.memory=2.0')
+        expected_body.append('X-OCCI-Attribute: occi.compute.memory=2.00')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="active"')
         self._verify_body(get_response.body, expected_body)
 
@@ -398,7 +400,6 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         response = self._post(headers=request_headers)
 
         # Assume success
-        print response.body
         self.assertEqual(response.status, 200)
 
         # Location of created object
