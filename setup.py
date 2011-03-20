@@ -33,7 +33,8 @@ setup(
     maintainer_email='ralf@nyren.net',
     keywords=['OCCI', 'Cloud', 'Library', 'REST', 'RESTful', 'IaaS', 'PaaS', 'SaaS'],
     license='GNU Lesser General Public License (LGPL) version 3',
-    packages=['occi',],
+    platforms=['any'],
+    packages=['occi', 'occi.demo', 'occi.ext', 'occi.http'],
 #   test_suite='tests.all',
     classifiers=[
         'Development Status :: 3 - Alpha',
