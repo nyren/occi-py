@@ -83,7 +83,9 @@ class DataObject(object):
         # Actions
         for action in entity.occi_list_applicable_actions():
             l = LinkRepr(
-                    target_location='%s?action=%s' % (self.location, action.term),
+                    target_location='%s?action=%s' % (
+                        self.translator.from_native(entity.id, path_only=True),
+                        action.term),
                     target_categories=[action],
                     target_title=action.title)
             self.links.append(l)
@@ -129,7 +131,7 @@ class DataObject(object):
             # Kind instance required
             if not kind:
                 raise self.Invalid('Kind not specified, cannot create Entity')
-            entity = kind.entity_type(kind, mixins)
+            entity = kind.entity_type(kind, mixins=mixins)
         else:
             if kind and str(kind) != str(entity.get_occi_kind()):
                 raise self.Invalid('Cannot change Kind of existing Entity')
@@ -149,7 +151,7 @@ class DataObject(object):
                 # Initialise target Resource
                 t_kind, t_mixins = self._resolve_categories(
                         link_repr.target_categories, category_registry)
-                target = t_kind.entity_type(t_kind, t_mixins)
+                target = t_kind.entity_type(t_kind, mixins=t_mixins)
                 target.occi_set_translator(self.translator)
                 if not isinstance(target, Resource):
                     raise self.Invalid('Link target must be a Resource type')
@@ -162,7 +164,7 @@ class DataObject(object):
                 except self.Invalid:
                     l_kind = LinkKind
                     l_mixins = []
-                link = l_kind.entity_type(l_kind, l_mixins)
+                link = l_kind.entity_type(l_kind, mixins=l_mixins)
                 link.occi_set_translator(self.translator)
                 if not isinstance(link, Link):
                     raise self.Invalid('Relation must be a Link type')

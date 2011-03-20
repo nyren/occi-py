@@ -95,7 +95,7 @@ class HandlerBase(object):
             raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
             print e
-            raise HttpRequestError(hrc.SERVER_ERROR(e))
+            raise HttpRequestError(hrc.SERVER_ERROR())
 
     def _filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
         """Filter entity objects from backend."""
@@ -109,7 +109,7 @@ class HandlerBase(object):
             raise HttpRequestError(hrc.BAD_REQUEST(e))
         except ServerBackend.ServerBackendError as e:
             print e
-            raise HttpRequestError(hrc.SERVER_ERROR(e))
+            raise HttpRequestError(hrc.SERVER_ERROR())
 
     def _save_entities(self, entities, id_prefix=None, user=None):
         """Save Entity objects to backend."""
