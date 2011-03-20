@@ -17,4 +17,4 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-__version__ = '0.4'
+__version__ = '0.5'

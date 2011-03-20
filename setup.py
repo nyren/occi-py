@@ -34,7 +34,8 @@ setup(
     keywords=['OCCI', 'Cloud', 'Library', 'REST', 'RESTful', 'IaaS', 'PaaS', 'SaaS'],
     license='GNU Lesser General Public License (LGPL) version 3',
     platforms=['any'],
-    packages=['occi', 'occi.demo', 'occi.ext', 'occi.http'],
+    packages=['occi', 'occi.ext', 'occi.http'],
+    scripts=['occi/demo/occi_iaas_demo.py'],
 #   test_suite='tests.all',
     classifiers=[
         'Development Status :: 3 - Alpha',

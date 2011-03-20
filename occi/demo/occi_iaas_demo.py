@@ -22,6 +22,7 @@ import optparse
 import urlparse
 
 import occi.core
+import occi.http
 from occi.server import OCCIServer, DummyBackend
 from occi.ext.infrastructure import *
 from occi.http.tornado_frontend import TornadoHttpServer
@@ -76,4 +77,9 @@ if __name__ == "__main__":
     http_server = TornadoHttpServer(init_server(DummyBackend()),
             listen_address=url.hostname, listen_port=url.port,
             base_url=options.base_url)
+
+    print "%s listen=%s port=%s" % (occi.http.version_string,
+            http_server.address, http_server.port)
+    print "base_url=%s base_path=%s" % (http_server.base_url + '/', http_server.base_path + '/')
+
     http_server.run()

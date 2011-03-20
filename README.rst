@@ -2,7 +2,7 @@
  occi-py - OCCI Client/Server Library for Python
 =================================================
 
-:Version: 0.4
+:Version: 0.5
 
 Synopsis
 ========
@@ -69,14 +69,14 @@ A demo implementation of the OCCI Infrastructure specification is provided in
 `occi.demo.iaas_demo`. The demo uses the `Tornado` front-end and thus requires the
 `Tornado` framework to be installed.
 
-To start ensure the `occi-py` library is in your Python path and run,::
+To start the demo install `occi-py` and run,::
 
-    $ python occi/demo/iaas_demo.py
+    $ occi_iaas_demo.py
 
 You will then have an OCCI server listening to port 8000 on localhost. To use a different
 base URL specify the --base_url option, e.g.,::
 
-    $ python occi/demo/iaas_demo.py --base_url http://www.example.com:80/api/
+    $ occi_iaas_demo.py --base_url http://www.example.com:8000/api/
 
 OCCI Client
 ===========

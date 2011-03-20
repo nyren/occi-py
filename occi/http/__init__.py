@@ -34,7 +34,7 @@ class HttpServer(object):
             base_url=None):
         self.server = occi_server
         self.address = listen_address
-        self.port = listen_port or 8000
+        self.port = listen_port or 80
         self.translator = URLTranslator(base_url or '')
         self.base_url = self.translator.base_url
         self.base_path = self.translator.base_path
