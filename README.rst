@@ -65,16 +65,16 @@ further information.
 IaaS Demo
 ---------
 
-A demo implementation of the OCCI Infrastructure specification is provided in
-`occi.demo.iaas_demo`. The demo uses the `Tornado` front-end and thus requires the
-`Tornado` framework to be installed.
+A demo implementation of the OCCI Infrastructure specification is provided by
+`occi_iaas_demo.py` script. The demo uses the `Tornado` front-end and thus
+requires the `Tornado` framework to be installed.
 
 To start the demo install `occi-py` and run,::
 
     $ occi_iaas_demo.py
 
-You will then have an OCCI server listening to port 8000 on localhost. To use a different
-base URL specify the --base_url option, e.g.,::
+You will then have an OCCI server listening to port 8000 on localhost. To use a
+different base URL specify the --base_url option, e.g.,::
 
     $ occi_iaas_demo.py --base_url http://www.example.com:8000/api/
 
