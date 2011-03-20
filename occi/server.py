@@ -27,7 +27,21 @@ class ServerBackend(object):
         raise self.ServerBackendError('Server Backend must implement get_entity')
 
     def filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
-        """not too sure about id_prefix filtering, i.e. path"""
+        """Return a list of `Entity` objects matching the specified filter.
+
+        The filter parameters are specified using the keyword arguments
+        described below.  All specified filter parameters must match the
+        returned `Entity` instances.
+
+        :keyword categories: A list of `Category` instances a matching `Entity`
+            instance must be a member of.
+        :keyword attributes: A list of attribute key-value pairs which must all
+            be present in a matching `Entity` instance.
+        :keyword id_prefix: A string prefix which must match the start of the
+            `Entity` ID.
+        :keyword user: The authenticated user.
+        :return: A list of `Entity` instances matching the filter parameters.
+        """
         raise self.ServerBackendError('Server Backend must implement filter_entities')
 
     def save_entities(self, entities, id_prefix=None, user=None):
@@ -113,7 +127,7 @@ class DummyBackend(ServerBackend):
             skip = False
             # Filter on id_prefix
             if id_prefix:
-                if not entity_id.startswith(id_prefix + '/'):
+                if not entity_id.startswith(id_prefix):
                     continue
 
             # Filter on Categories
