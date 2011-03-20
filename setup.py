@@ -24,8 +24,8 @@ from occi import __version__
 setup(
     name='occi',
     version=__version__,
-    description='Open Cloud Computing Interface Server/Client Library',
-    long_description=open('README').read(),
+    description='Open Cloud Computing Interface Client/Server Library',
+    long_description=open('README.rst').read(),
     url='http://github.com/nyren/occi-py',
     author='Ralf Nyren',
     author_email='ralf@nyren.net',
