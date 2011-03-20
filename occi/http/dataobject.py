@@ -1,6 +1,6 @@
 import urlparse
 
-from occi.core import Category, Kind, Resource, Link, Action, IDTranslator
+from occi.core import Category, Kind, Mixin, Resource, Link, Action, IDTranslator
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.

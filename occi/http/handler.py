@@ -169,8 +169,8 @@ class EntityHandler(HandlerBase):
 
         # Action query argument
         try:
-            action_name = request.query_args['action']
-        except KeyError:
+            action_name = request.query_args['action'][0]
+        except (KeyError, IndexError):
             return hrc.BAD_REQUEST('Missing action query parameter')
 
         # Get instance
@@ -322,7 +322,7 @@ class CollectionHandler(HandlerBase):
         """
         # Action request?
         if request.query_args:
-            return self._collection_action(request, path, user=user)
+            return self._collection_action(request, path)
 
         # Parse request
         try:

@@ -216,7 +216,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers = []
         request_headers.append(('Category', 'stop; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request_headers.append(('x-occi-attribute', 'method="acpioff"'))
-        request = HttpRequest(request_headers, '', query_args={'action': 'stop'})
+        request = HttpRequest(request_headers, '', query_args={'action': ['stop']})
         response = self.handler.post(request, self.compute_id[1])
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
@@ -235,7 +235,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_post_not_applicable(self):
         request_headers = []
         request_headers.append(('Category', 'start; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
-        request = HttpRequest(request_headers, '', query_args={'action': 'start'})
+        request = HttpRequest(request_headers, '', query_args={'action': ['start']})
         response = self.handler.post(request, self.compute_id[1])
         self.assertEqual(response.status, 400)
         self.assertEqual(response.body, 'start: action not applicable')
@@ -289,8 +289,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         super(CollectionHandlerTestCase, self).setUp()
         self.handler = CollectionHandler(self.server, translator=self.translator)
 
-    def _request(self, verb='get', path='', headers=[], body=''):
-        request = HttpRequest(headers, body)
+    def _request(self, verb='get', path='', headers=[], body='', query_args=None):
+        request = HttpRequest(headers, body, query_args=query_args)
         response = getattr(self.handler, verb)(request, path)
         return response
 
@@ -412,6 +412,18 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append('X-OCCI-Location: %s' % location)
         self._verify_body(response.body, expected_body)
+
+    def test_post_action(self, path=''):
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('content-type', 'text/occi'))
+        request_headers.append(('Category', 'start; scheme=http://schemas.ogf.org/occi/infrastructure/compute/action#'))
+        response = self._post(headers=request_headers, path=path, query_args={'action': ['start']})
+
+        # Assume success
+        self.assertEqual(response.status, 501)
+
+    def test_post_action_compute(self):
+        self.test_post_action(path=self.translator.from_native(ComputeKind.location))
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
