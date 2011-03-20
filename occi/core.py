@@ -413,7 +413,7 @@ class Entity(object):
 
         # Add additional Mixins
         for mixin in mixins:
-            self.add_occi_mixin(mixin)
+            self.occi_add_mixin(mixin)
 
     def _add_actions_available(self, actions=[]):
         for category in actions:
@@ -426,10 +426,10 @@ class Entity(object):
             self._occi_actions_available.pop(cat_id, None)
             self._occi_actions_applicable.pop(cat_id, None)
 
-    def get_occi_kind(self):
+    def occi_get_kind(self):
         return self._occi_kind
 
-    def add_occi_mixin(self, mixin):
+    def occi_add_mixin(self, mixin):
         cat_id = str(mixin)
 
         # Must be a Mixin type
@@ -440,24 +440,24 @@ class Entity(object):
         self._occi_mixins[cat_id] = mixin
         self._add_actions_available(mixin.actions)
 
-    def remove_occi_mixin(self, mixin):
+    def occi_remove_mixin(self, mixin):
         try:
             mixin = self._occi_mixins.pop(str(mixin))
             self._remove_actions_available(mixin.actions)
         except KeyError:
             raise self.UnknownCategory(mixin, 'not found')
 
-    def list_occi_categories(self):
+    def occi_list_categories(self):
         return [self._occi_kind] + self._occi_mixins.values()
 
     def occi_set_translator(self, translator):
         self._occi_translator = translator
 
-    def get_occi_attribute(self, name):
+    def occi_get_attribute(self, name):
         """Get single OCCI attribute value."""
         return self._occi_attributes.get(name)
 
-    def get_occi_attributes(self, convert=False, exclude=()):
+    def occi_get_attributes(self, convert=False, exclude=()):
         """Get list of OCCI attribute key-value pairs.
 
         :keyword convert: If True convert from OCCI native format to external
@@ -465,7 +465,7 @@ class Entity(object):
         :keyword exclude: A list of attribute names to exclude.
         """
         attr_list = []
-        for category in self.list_occi_categories():
+        for category in self.occi_list_categories():
             for attribute in category.attributes:
                 if attribute.name in exclude:
                     continue
@@ -480,7 +480,7 @@ class Entity(object):
                     attr_list.append((attribute.name, value))
         return attr_list
 
-    def set_occi_attributes(self, attr_list, validate=True):
+    def occi_set_attributes(self, attr_list, validate=True):
         """Set the values of the OCCI attributes defined for this resource
         instance.
 
@@ -490,20 +490,20 @@ class Entity(object):
         >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)])
         >>> entity = Entity(fooKind)
         >>> attrs = [('summary', 'blah blah')]
-        >>> entity.set_occi_attributes(attrs, validate=True)
+        >>> entity.occi_set_attributes(attrs, validate=True)
         Traceback (most recent call last):
-            File "core.py", line 362, in set_occi_attributes
+            File "core.py", line 362, in occi_set_attributes
                 raise self.RequiredAttribute(attribute.name)
         RequiredAttribute: "com.example.bar": Required attribute
         >>> attrs += [('title', 'A "tiny" resource instance')]
         >>> attrs += [('com.example.bar', 'Bar')]
-        >>> entity.set_occi_attributes(attrs, validate=True)
-        >>> entity.get_occi_attributes(convert=True)
+        >>> entity.occi_set_attributes(attrs, validate=True)
+        >>> entity.occi_get_attributes(convert=True)
         [('title', 'A "tiny" resource instance'), ('summary', 'blah blah'), ('com.example.bar', 'Bar')]
         >>> attrs += [('summary', 'duplicate')]
-        >>> entity.set_occi_attributes(attrs, validate=True)
+        >>> entity.occi_set_attributes(attrs, validate=True)
         Traceback (most recent call last):
-            File "core.py", line 256, in set_occi_attributes
+            File "core.py", line 256, in occi_set_attributes
                 raise self.DuplicateAttribute(attr)
         DuplicateAttribute: "summary": Duplicate attribute
 
@@ -516,7 +516,7 @@ class Entity(object):
             attr_dict[attr] = value
 
         # Add attributes to the Entity instance
-        for category in self.list_occi_categories():
+        for category in self.occi_list_categories():
             for attribute in category.attributes:
                 try:
                     value = attr_dict[attribute.name]

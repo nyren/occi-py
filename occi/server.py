@@ -112,11 +112,11 @@ class DummyBackend(ServerBackend):
     >>> from occi.ext.infrastructure import *
     >>> t = backend.save_entities([ComputeKind.entity_type(ComputeKind)])
     >>> compute = ComputeKind.entity_type(ComputeKind)
-    >>> compute.set_occi_attributes([('occi.compute.memory', '2.0')])
+    >>> compute.occi_set_attributes([('occi.compute.memory', '2.0')])
     >>> storage = StorageKind.entity_type(StorageKind)
     >>> compute_id, storage_id = backend.save_entities([compute, storage])
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-    >>> link.set_occi_attributes([('source', compute_id), ('target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
+    >>> link.occi_set_attributes([('source', compute_id), ('target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
     >>> link_id = backend.save_entities([link])
     >>> len(backend.filter_entities())
     4
@@ -150,7 +150,7 @@ class DummyBackend(ServerBackend):
                     continue
 
             # Filter on Categories
-            cats = entity.list_occi_categories()
+            cats = entity.occi_list_categories()
             for cat in categories or ():
                 if str(cat) not in cats:
                     skip=True
@@ -160,7 +160,7 @@ class DummyBackend(ServerBackend):
             # Filter on Attributes
             if categories and attributes:
                 for name, value in attributes:
-                    t = entity.get_occi_attribute(name)
+                    t = entity.occi_get_attribute(name)
                     if str(t) != str(value):    # FIXME - this implies "2.0" == 2.0
                         skip = True
                         break
@@ -175,13 +175,13 @@ class DummyBackend(ServerBackend):
         for entity in entities:
             # Generate ID if new instance
             if not entity.id:
-                loc = entity.get_occi_kind().location or ''
+                loc = entity.occi_get_kind().location or ''
                 entity.id = '%s%s' % (loc, uuid.uuid4())
 
             # Links
             if isinstance(entity, Link):
-                source = self.get_entity(entity.get_occi_attribute('source'), user=user)
-                target = self.get_entity(entity.get_occi_attribute('target'), user=user)
+                source = self.get_entity(entity.occi_get_attribute('source'), user=user)
+                target = self.get_entity(entity.occi_get_attribute('target'), user=user)
                 entity.source = source
                 entity.target = target
                 links = []

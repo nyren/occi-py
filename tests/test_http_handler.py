@@ -53,7 +53,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e = ComputeKind.entity_type(ComputeKind)
         attrs = [('title', 'A "little" VM'), ('occi.compute.state', 'inactive')]
         attrs.append(('occi.compute.memory', 5.0/3))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         e.occi_set_applicable_action(ComputeStartActionCategory)
         entities.append(e)
         #
@@ -61,7 +61,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs = [('title', 'Another " VM'), ('occi.compute.state', 'active')]
         attrs.append(('occi.compute.speed', '2.33'))
         attrs.append(('occi.compute.memory', '4.0'))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         e.occi_set_applicable_action(ComputeStopActionCategory)
         entities.append(e)
         #
@@ -70,18 +70,18 @@ class HandlerTestCaseBase(unittest.TestCase):
         # Pre-populate backend: Network Resources
         entities = []
         e = NetworkKind.entity_type(NetworkKind)
-        e.add_occi_mixin(IPNetworkMixin)
+        e.occi_add_mixin(IPNetworkMixin)
         attrs = [('title', 'Internet'), ('occi.network.state', 'active')]
         attrs.append(('occi.network.address', '11.12.0.0/16'))
         attrs.append(('occi.network.gateway', '11.12.0.1'))
         attrs.append(('occi.network.allocation', 'static'))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = NetworkKind.entity_type(NetworkKind)
         attrs = [('title', 'Private VLAN'), ('occi.network.state', 'active')]
         attrs.append(('occi.network.vlan', 123))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
         self.network_id = server.backend.save_entities(entities)
@@ -98,7 +98,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         entities = []
         e = NetworkInterfaceKind.entity_type(NetworkInterfaceKind)
         e.occi_set_translator(self.translator)
-        e.add_occi_mixin(IPNetworkInterfaceMixin)
+        e.occi_add_mixin(IPNetworkInterfaceMixin)
         attrs = [('title', 'Primary Interface'), ('occi.networkinterface.state', 'active')]
         attrs.append(('occi.networkinterface.interface', 'eth0'))
         attrs.append(('occi.networkinterface.mac', '00:11:22:33:44:55'))
@@ -106,7 +106,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.networkinterface.allocation', 'static'))
         attrs.append(('source', self.compute_id[0]))
         attrs.append(('target', self.network_id[0]))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = StorageLinkKind.entity_type(StorageLinkKind)
@@ -115,7 +115,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
         attrs.append(('source', self.compute_id[0]))
         attrs.append(('target', self.storage_id[0]))
-        e.set_occi_attributes(attrs, validate=False)
+        e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
         self.link_id = server.backend.save_entities(entities)

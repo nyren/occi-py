@@ -51,15 +51,15 @@ class DataObject(object):
         >>> from occi.ext.infrastructure import *
         >>> compute = ComputeKind.entity_type(ComputeKind)
         >>> compute.id = 'compute/123'
-        >>> compute.set_occi_attributes([('occi.compute.speed', 7.0/3)], validate=False)
+        >>> compute.occi_set_attributes([('occi.compute.speed', 7.0/3)], validate=False)
         >>> compute.occi_set_applicable_action(ComputeStartActionCategory)
         >>> storage = StorageKind.entity_type(StorageKind)
         >>> storage.id = 'storage/234'
-        >>> storage.set_occi_attributes([('title', 'My Disk')], validate=False)
+        >>> storage.occi_set_attributes([('title', 'My Disk')], validate=False)
         >>> link = StorageLinkKind.entity_type(StorageLinkKind)
         >>> link.id = 'link/storage/345'
         >>> link.target = storage
-        >>> link.set_occi_attributes([('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
+        >>> link.occi_set_attributes([('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
         >>> compute.links.append(link)
         >>> d = DataObject(translator=URLTranslator('/api/'))
         >>> d.load_from_entity(compute)
@@ -79,8 +79,8 @@ class DataObject(object):
         entity.occi_set_translator(self.translator)
 
         # Get Entity Kind, Mixins, Attributes and ID
-        self.categories = entity.list_occi_categories()
-        self.attributes = entity.get_occi_attributes(convert=True)
+        self.categories = entity.occi_list_categories()
+        self.attributes = entity.occi_get_attributes(convert=True)
         self.location = self.translator.from_native(entity.id)
 
         # Links
@@ -88,13 +88,13 @@ class DataObject(object):
             for link in entity.links:
                 l = LinkRepr(
                         target_location=self.translator.from_native(link.target.id),
-                        target_categories=link.target.list_occi_categories(),
-                        target_title=link.target.get_occi_attribute('title'),
+                        target_categories=link.target.occi_list_categories(),
+                        target_title=link.target.occi_get_attribute('title'),
                         link_location=self.translator.from_native(link.id))
-                link_attributes = link.get_occi_attributes(convert=True,
+                link_attributes = link.occi_get_attributes(convert=True,
                         exclude=('source', 'target'))
                 if link_attributes:
-                    l.link_categories = link.list_occi_categories()
+                    l.link_categories = link.occi_list_categories()
                     l.link_attributes = link_attributes
 
                 self.links.append(l)
@@ -124,17 +124,17 @@ class DataObject(object):
         >>> l.link_attributes = [('occi.storagelink.deviceid', 'ide:0:1')]
         >>> d.links.append(l)
         >>> entity = d.save_to_entity(save_links=True)
-        >>> entity.list_occi_categories()
+        >>> entity.occi_list_categories()
         [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
-        >>> round(entity.get_occi_attribute('occi.compute.speed')*1000)
+        >>> round(entity.occi_get_attribute('occi.compute.speed')*1000)
         2330.0
-        >>> entity.links[0].list_occi_categories()
+        >>> entity.links[0].occi_list_categories()
         [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
-        >>> entity.links[0].get_occi_attributes()
+        >>> entity.links[0].occi_get_attributes()
         [('source', 'compute/123'), ('target', 'storage/234'), ('occi.storagelink.deviceid', 'ide:0:1')]
-        >>> entity.links[0].target.list_occi_categories()
+        >>> entity.links[0].target.occi_list_categories()
         [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')]
-        >>> entity.links[0].target.get_occi_attributes()
+        >>> entity.links[0].target.occi_get_attributes()
         []
         """
 
@@ -152,15 +152,15 @@ class DataObject(object):
                 raise self.Invalid('Kind not specified, cannot create Entity')
             entity = kind.entity_type(kind, mixins=mixins)
         else:
-            if kind and str(kind) != str(entity.get_occi_kind()):
+            if kind and str(kind) != str(entity.occi_get_kind()):
                 raise self.Invalid('Cannot change Kind of existing Entity')
-            [entity.add_occi_mixin(mixin) for mixin in mixins]
+            [entity.occi_add_mixin(mixin) for mixin in mixins]
 
         # Set location translator for Entity instance
         entity.occi_set_translator(self.translator)
 
         # Load attributes
-        entity.set_occi_attributes(self.attributes, validate=validate_attr)
+        entity.occi_set_attributes(self.attributes, validate=validate_attr)
 
         # Load Link relations
         if save_links and self.links:
@@ -193,7 +193,7 @@ class DataObject(object):
                         ('source', self.location),
                         ('target', link_repr.target_location)
                 ]
-                link.set_occi_attributes(
+                link.occi_set_attributes(
                         default_attr + link_repr.link_attributes,
                         validate=validate_attr)
 
