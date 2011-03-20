@@ -193,7 +193,10 @@ class DummyBackend(ServerBackend):
                 raise Entity.DoesNotExist(entity_id)
 
     def exec_action(self, action, entity, payload=None, user=None):
-        pass
+        try:
+            return getattr(entity, 'exec_action')(action, payload=payload)
+        except AttributeError:
+            return None
 
 if __name__ == "__main__":
     import doctest
