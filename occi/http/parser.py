@@ -189,6 +189,8 @@ class HeaderParser(Parser):
                 cls = Kind
             elif t and t.lower() == 'mixin':
                 cls = Mixin
+            elif not t and param.get('location'):
+                cls = Mixin
 
             # Related Kind/Mixin
             try:
