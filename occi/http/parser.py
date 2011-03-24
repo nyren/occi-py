@@ -22,7 +22,7 @@ import re
 from occi.core import Category, Kind, Mixin
 from occi.server import OCCIServer
 from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
-from occi.http.dataobject import DataObject, LinkRepr
+from occi.http.dataobject import DataObject, LinkRepr, URLTranslator
 
 _parsers = {}
 
@@ -35,7 +35,7 @@ def register_parser(content_type, parser):
 def unregister_parser(content_type):
     del _parsers[content_type]
 
-def get_parser(content_type=None):
+def get_parser(content_type=None, translator=None):
     """Return a parser for the given Content-Type.
 
     >>> p = get_parser('text/occi')
@@ -68,7 +68,7 @@ def get_parser(content_type=None):
 
     if not p:
         raise ParserError('"%s": Content-Type not supported' % content_type)
-    return p()
+    return p(translator=translator)
 
 class Parser(object):
     """Parser base class.
@@ -81,9 +81,10 @@ class Parser(object):
     :var accept_types: A list of content types (populated by Parser.parse())
 
     """
-    def __init__(self):
+    def __init__(self, translator=None):
         self.objects = []
         self.accept_types = []
+        self.translator = translator or URLTranslator('')
 
     def parse(self, headers=None, body=None):
         """The parse method doing the actual work. This method must be called
@@ -226,16 +227,18 @@ class HeaderParser(Parser):
             }
 
             # Additional keyword args for Kind/Mixin
-            if isinstance(cls, Kind) or isinstance(cls, Mixin):
+            if cls == Kind or cls == Mixin:
                 kwargs['related'] = related
                 kwargs['actions'] = actions
-                kwargs['location'] = param.get('location')
+                location = param.get('location')
+                if location:
+                    kwargs['location'] = self.translator.to_native(location)
 
             # Append instance to categories list
             try:
                 categories.append(cls(term, scheme, **kwargs))
-            except Category.Invalid:
-                raise HttpHeaderError('%s: Invalid Category header' % (scheme+term))
+            except Category.Invalid as e:
+                raise HttpHeaderError('%s: Invalid Category header: %s' % (scheme+term, e))
 
         return categories
 
@@ -273,8 +276,8 @@ class TextPlainParser(Parser):
     >>> [obj.location for obj in p.objects]
     ['http://example.com/network/123', 'http://example.com/network/234', 'http://example.com/network/345']
     """
-    def __init__(self):
-        self._header_parser = HeaderParser()
+    def __init__(self, translator=None):
+        self._header_parser = HeaderParser(translator=translator)
 
     def get_objects(self):
         return self._header_parser.objects
