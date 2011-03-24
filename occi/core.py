@@ -156,7 +156,7 @@ class CategoryRegistry(object):
         """Register a new Category/Kind/Mixin."""
         s = str(category)
         if s in self._categories:
-            self.unregister(s)
+            raise Category.Invalid('%s: Category already registered' % s)
 
         # Location
         if hasattr(category, 'location') and category.location:
@@ -247,8 +247,9 @@ class Mixin(ExtCategory):
     an existing resource instance. A 'resource instance' is an instance of a
     sub-type of Entity.
     """
-    def __init__(self, term, scheme, **kwargs):
+    def __init__(self, term, scheme, userdefined=None, **kwargs):
         super(Mixin, self).__init__(term, scheme, **kwargs)
+        self.userdefined = userdefined or False
 
         if self.related and not isinstance(self.related, Mixin):
             raise Category.Invalid("Mixin instance can only be related to other Mixin instances")
