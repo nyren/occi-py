@@ -305,10 +305,33 @@ class TextPlainParser(Parser):
 
         self._header_parser.parse(headers=headers)
 
+class TextURIListParser(Parser):
+    """Parser for the text/uri-list content type.
+
+    Data is transmitted in the HTTP Body.
+
+    >>> body  = 'http://example.com/network/123\\n'
+    >>> body += 'http://example.com/network/234\\r\\n'
+    >>> body += 'http://example.com/network/345 \\n'
+    >>> body += '\\r\\n'
+    >>> p = TextURIListParser()
+    >>> p.parse(body=body)
+    >>> [obj.location for obj in p.objects]
+    ['http://example.com/network/123', 'http://example.com/network/234', 'http://example.com/network/345']
+    """
+    def parse(self, headers=None, body=None):
+        super(TextURIListParser, self).parse(headers, body)
+        body = body or ''
+        for loc in body.replace('\r', '').split('\n'):
+            loc = loc.strip()
+            if loc:
+                self.objects.append(DataObject(location=loc))
+
 # Register required parsers
 register_parser(None, HeaderParser)
 register_parser('text/occi', HeaderParser)
 register_parser('text/plain', TextPlainParser)
+register_parser('text/uri-list', TextURIListParser)
 
 
 if __name__ == "__main__":
