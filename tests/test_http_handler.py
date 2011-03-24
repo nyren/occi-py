@@ -478,3 +478,15 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(self.server.registry.lookup_location('taggy/'),
                 'http://example.com/occi/custom#taggy')
 
+    def test_delete(self):
+        self.test_put()
+        headers = [('Content-Type', 'text/occi')]
+        headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"'))
+        request = HttpRequest(headers, '')
+        response = self.handler.delete(request)
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.server.registry.lookup_location('my_stuff/'),
+                'http://example.com/occi/custom#my_stuff')
+        self.assertEqual(self.server.registry.lookup_location('taggy/'), None)
+

@@ -422,7 +422,7 @@ class DiscoveryHandler(HandlerBase):
         return hrc.BAD_REQUEST()
 
     def put(self, request):
-        """Create a user-defined Mixin instance(s)"""
+        """Create user-defined Mixin instance(s)"""
         # Parse request and extract Mixin defs
         try:
             parser, renderer = self._request_init(request)
@@ -431,7 +431,7 @@ class DiscoveryHandler(HandlerBase):
 
         # Any Mixin defs supplied?
         if not parser.objects:
-            raise HttpRequestError(hrc.BAD_REQUEST('No Mixin definition(s) supplied'))
+            return hrc.BAD_REQUEST('No Mixin definition(s) supplied')
 
         # Extract Mixin definitions
         mixins = []
@@ -485,5 +485,47 @@ class DiscoveryHandler(HandlerBase):
         return hrc.ALL_OK()
 
     def delete(self, request):
-        """Remove a user-defined Mixin instance(s)"""
-        return hrc.NOT_IMPLEMENTED()
+        """Remove user-defined Mixin instance(s)"""
+        # Parse request and extract Mixin defs
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
+
+        # Any Mixin defs supplied?
+        if not parser.objects:
+            return hrc.BAD_REQUEST('No Mixin definition(s) supplied')
+
+        # Extract Mixin definitions
+        mixins = []
+        try:
+            for category in parser.objects[0].categories:
+                # Find Mixin in registry
+                try:
+                    mixin = self.server.registry.lookup_id(category)
+                except Category.DoesNotExist:
+                    return hrc.BAD_REQUEST('%s: does not exist' % category)
+
+                if not hasattr(mixin, 'userdefined') or not mixin.userdefined:
+                    return hrc.BAD_REQUEST('%s: not a user-defined Mixin' % mixin)
+                mixins.append(mixin)
+        except Category.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Remove Mixins from backend and Category registry
+        try:
+            for mixin in mixins:
+                self.server.backend.remove_user_mixin(mixin, user=request.user)
+                try:
+                    self.server.registry.unregister(mixin)
+                except Category.Invalid as e:
+                    return hrc.BAD_REQUEST(e)
+        except ServerBackend.InvalidOperation as e:
+            return hrc.BAD_REQUEST(e)
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return hrc.SERVER_ERROR()
+        except NotImplementedError as e:
+            return hrc.NOT_IMPLEMENTED(e)
+
+        return hrc.ALL_OK()
