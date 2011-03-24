@@ -104,6 +104,29 @@ class ServerBackend(object):
         """
         raise self.ServerBackendError('Server Backend must implement exec_action_on_collection')
 
+    def add_user_mixin(self, mixin, user=None):
+        """Validate a user-supplied Mixin instance and perform any
+        backend-specific tasks related to the event. The method must return the
+        mixin instance to be added, either a modified version or the original
+        user-supplied Mixin instance.
+
+        :param mixin: User-defined `Mixin` instance.
+        :keyword user: The authenticated user.
+        :return: The actual `Mixin` instance to be added.
+        """
+        raise NotImplementedError('User-defined Mixins not supported')
+
+    def remove_user_mixin(self, mixin, user=None):
+        """Validate the removal of a user-defined `Mixin` instance and perform
+        any backend-specific tasks related to the event. The method is expected
+        to throw a InvalidOperation exception if the removal operation is to be
+        refused.
+
+        :param mixin: User-defined `Mixin` instance to be removed.
+        :keyword user: The authenticated user.
+        """
+        raise NotImplementedError('User-defined Mixins not supported')
+
 
 class DummyBackend(ServerBackend):
     """Very simple (and inefficient) in-memory backend for test purposes.
@@ -216,6 +239,12 @@ class DummyBackend(ServerBackend):
             return getattr(entity, 'exec_action')(action, payload=payload)
         except AttributeError:
             return None
+
+    def add_user_mixin(self, mixin, user=None):
+        return mixin
+
+    def remove_user_mixin(self, mixin, user=None):
+        pass
 
 if __name__ == "__main__":
     import doctest
