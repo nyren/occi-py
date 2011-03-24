@@ -30,13 +30,13 @@ class TornadoHttpServer(HttpServer):
         super(TornadoHttpServer, self).__init__(*args, **kwargs)
 
         self.application = tornado.web.Application([
-            (self.base_path + r"/-/", TornadoRequestHandler,
+            (self.base_path + r'/*/-/', TornadoRequestHandler,
                 dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
-            (self.base_path + r"/", TornadoRequestHandler,
+            (self.base_path + r'/', TornadoRequestHandler,
                 dict(handler=CollectionHandler(self.server, translator=self.translator), args=[''])),
-            (self.base_path + r"/(.+/)", TornadoRequestHandler,
+            (self.base_path + r'/(.+/)', TornadoRequestHandler,
                 dict(handler=CollectionHandler(self.server, translator=self.translator))),
-            (self.base_path + r"/(.+[^/])", TornadoRequestHandler,
+            (self.base_path + r'/(.+[^/])', TornadoRequestHandler,
                 dict(handler=EntityHandler(self.server, translator=self.translator))),
             ])
 
@@ -62,6 +62,9 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
         if self.args:
             args = self.args
         response = getattr(self.handler, verb)(request, *args)
+
+#       print '%s.%s(%s): %d' % (self.handler.__class__.__name__,
+#               verb, args, response.status)
 
         # Status code of response
         self.set_status(response.status)
