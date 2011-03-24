@@ -390,13 +390,51 @@ class CollectionHandler(HandlerBase):
     def _collection_action(self, request, path):
         return hrc.NOT_IMPLEMENTED()
 
+    def _update_mixin_collection(self, request, path, add=True):
+        # Parse request
+        parser, renderer = self._request_init(request)
+
+        # Lookup Mixin at the specified path
+        mixin = self.server.registry.lookup_location(path)
+        if not mixin:
+            raise HttpRequestError(hrc.NOT_FOUND('%s: no such collection' % path))
+        if not isinstance(mixin, Mixin):
+            raise HttpRequestError(hrc.BAD_REQUEST('%s: not a mixin location' % path))
+
+        # Get entities corresponding to the given locations
+        entities = []
+        for dao in parser.objects:
+            if not dao.location:
+                return hrc.BAD_REQUEST('resource instance location expected')
+            entity_id = self.translator.to_native(dao.location)
+            entity = self._get_entity(entity_id, user=request.user)
+            if add:
+                entity.occi_add_mixin(mixin)
+            else:
+                entity.occi_remove_mixin(mixin)
+            entities.append(entity)
+
+        # Save all updated entities using a single backend operation
+        try:
+            self._save_entities(entities, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
     def put(self, request, path):
-        """Add resource instance to Mixin collection"""
-        return hrc.NOT_IMPLEMENTED()
+        """Add resource instance(s) to Mixin collection"""
+        try:
+            self._update_mixin_collection(request, path, add=True)
+        except HttpRequestError as e:
+            return e.response
+        return hrc.ALL_OK()
 
     def delete(self, request, path):
-        """Remove resource instance from Mixin collection"""
-        return hrc.NOT_IMPLEMENTED()
+        """Remove resource instance(s) from Mixin collection"""
+        try:
+            self._update_mixin_collection(request, path, add=False)
+        except HttpRequestError as e:
+            return e.response
+        return hrc.ALL_OK()
 
 class DiscoveryHandler(HandlerBase):
     """HTTP handler for the OCCI discovery interface."""

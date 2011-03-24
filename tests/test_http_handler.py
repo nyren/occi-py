@@ -308,8 +308,10 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         super(CollectionHandlerTestCase, self).setUp()
         self.handler = CollectionHandler(self.server, translator=self.translator)
 
-    def _request(self, verb='get', path='', headers=[], body='', query_args=None):
-        request = HttpRequest(headers, body, query_args=query_args)
+    def _request(self, verb='get', path='', content_type=None,
+            headers=[], body='', query_args=None):
+        request = HttpRequest(headers, body,
+                content_type=content_type, query_args=query_args)
         response = getattr(self.handler, verb)(request, path)
         return response
 
@@ -385,11 +387,10 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_resource(self):
         request_headers = [('accept', 'text/plain')]
-        request_headers.append(('content-type', 'text/occi'))
         request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.compute.speed=2.66'))
         request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
-        response = self._post(headers=request_headers)
+        response = self._post(headers=request_headers, content_type='text/occi')
 
         # Assume success
         self.assertEqual(response.status, 200)
@@ -412,7 +413,6 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         target = self._loc(self.storage_id[0])
 
         request_headers = [('accept', 'text/plain')]
-        request_headers.append(('content-type', 'text/occi'))
         request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
         request_headers.append(('x-occi-attribute', 'source="%s"' % source))
         request_headers.append(('x-occi-attribute', 'target="%s"' % target))
@@ -434,7 +434,6 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_action(self, path=''):
         request_headers = [('accept', 'text/plain')]
-        request_headers.append(('content-type', 'text/occi'))
         request_headers.append(('Category', 'start; scheme=http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         response = self._post(headers=request_headers, path=path, query_args={'action': ['start']})
 
@@ -443,6 +442,27 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_action_compute(self):
         self.test_post_action(path=self.translator.from_native(ComputeKind.location))
+
+    def test_put(self, path=None):
+        path = path or IPNetworkMixin.location
+        request_body = '%s\r\n' % self.network_id[1]
+        response = self._put(body=request_body,
+                content_type='text/uri-list', path=path)
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+        entity = self.server.backend.get_entity(self.network_id[1])
+        self.assertEqual(str(entity.occi_list_categories()[-1]),
+                str(IPNetworkMixin))
+
+    def test_delete(self, path=None):
+        path = path or IPNetworkMixin.location
+        request_body = '%s\r\n' % self.network_id[0]
+        response = self._delete(body=request_body,
+                content_type='text/uri-list', path=path)
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+        entity = self.server.backend.get_entity(self.network_id[0])
+        self.assertEqual(len(entity.occi_list_categories()), 1)
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
