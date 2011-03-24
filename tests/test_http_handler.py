@@ -463,3 +463,18 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="summary"'))
         expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="source target"'))
         self._verify_headers(response.headers[1:4], expected_headers)
+
+    def test_put(self):
+        location='my_stuff/'
+        headers = [('Content-Type', 'text/occi')]
+        headers.append(('Category', 'my_stuff; scheme="http://example.com/occi/custom#"; class=mixin; location=%s' % self._loc(location)))
+        headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"; class=mixin; location=taggy/'))
+        request = HttpRequest(headers, '')
+        response = self.handler.put(request)
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.server.registry.lookup_location(location),
+                'http://example.com/occi/custom#my_stuff')
+        self.assertEqual(self.server.registry.lookup_location('taggy/'),
+                'http://example.com/occi/custom#taggy')
+

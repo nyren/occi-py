@@ -17,7 +17,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from occi.core import Entity
+from occi.core import Category, Entity, Mixin
 from occi.server import ServerBackend
 from occi.http import get_parser, get_renderer
 from occi.http.header import HttpHeaderError
@@ -91,7 +91,8 @@ class HandlerBase(object):
     def _request_init(self, request):
         """Parse request and initialize response renderer."""
         try:
-            parser = get_parser(request.content_type)
+            parser = get_parser(request.content_type,
+                    translator=self.translator)
             parser.parse(request.headers, request.body)
         except (ParserError, HttpHeaderError) as e:
             raise HttpRequestError(hrc.BAD_REQUEST(e))
@@ -165,6 +166,7 @@ class HandlerBase(object):
         except ServerBackend.ServerBackendError as e:
             print e
             raise HttpRequestError(hrc.SERVER_ERROR())
+
 
 class EntityHandler(HandlerBase):
     """HTTP handler for existing Entity instances."""
@@ -420,9 +422,68 @@ class DiscoveryHandler(HandlerBase):
         return hrc.BAD_REQUEST()
 
     def put(self, request):
-        """Create a custem Mixin instance"""
-        return hrc.NOT_IMPLEMENTED()
+        """Create a user-defined Mixin instance(s)"""
+        # Parse request and extract Mixin defs
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
+
+        # Any Mixin defs supplied?
+        if not parser.objects:
+            raise HttpRequestError(hrc.BAD_REQUEST('No Mixin definition(s) supplied'))
+
+        # Extract Mixin definitions
+        mixins = []
+        try:
+            for category in parser.objects[0].categories:
+                # Required parameters
+                if not hasattr(category, 'related'):
+                    return hrc.BAD_REQUEST('"%s": not a Mixin' % category)
+                if not hasattr(category, 'location') or not category.location:
+                    return hrc.BAD_REQUEST('"%s": location must be specified' % category)
+
+                # Mixin must not exist
+                try:
+                    self.server.registry.lookup_id(category)
+                except Category.DoesNotExist:
+                    pass
+                else:
+                    return hrc.BAD_REQUEST('%s: Category already exist' % category)
+
+                # Mixin location must not be used
+                location = self.translator.to_native(category.location) 
+                if self.server.registry.lookup_location(location):
+                    return hrc.BAD_REQUEST('%s: conflicting location path' % location)
+
+                # Create Mixin instance
+                mixin = Mixin(category.term, category.scheme,
+                        userdefined=True,
+                        related=category.related, location=location)
+                mixins.append(mixin)
+        except Category.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Store Mixins in backend and save to Category registry
+        try:
+            for mixin in mixins:
+                mixin = self.server.backend.add_user_mixin(mixin, user=request.user)
+                try:
+                    # FIXME: locking needed to avoid race condition
+                    self.server.registry.register(mixin)
+                except Category.Invalid as e:
+                    self.server.backend.remove_user_mixin(mixin, user=request.user)
+                    return hrc.BAD_REQUEST(e)
+        except ServerBackend.InvalidOperation as e:
+            return hrc.BAD_REQUEST(e)
+        except ServerBackend.ServerBackendError as e:
+            print e
+            return hrc.SERVER_ERROR()
+        except NotImplementedError as e:
+            return hrc.NOT_IMPLEMENTED(e)
+
+        return hrc.ALL_OK()
 
     def delete(self, request):
-        """Remove a custem Mixin instance"""
+        """Remove a user-defined Mixin instance(s)"""
         return hrc.NOT_IMPLEMENTED()
