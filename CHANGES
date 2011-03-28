@@ -1,0 +1,9 @@
+* 0.6
+    * Implemented add/remove of user-defined Mixins. In other words allow PUT
+      and DELETE at the discovery interface (/-/).
+    * Implemented Mixin membership handling, i.e. allow PUT and DELETE for
+      collections.
+    * Accept header quality preferences.
+    * Fixed a multiple headers bug in the tornado frontend.
+
+* 0.5 Initial release
