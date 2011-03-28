@@ -21,7 +21,9 @@ import re
 
 from occi.core import Category, Kind, Mixin
 from occi.server import OCCIServer
-from occi.http.header import HttpHeaderError, HttpHeadersBase, HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders, HttpAttributeHeaders
+from occi.http.header import (HttpHeaderError, HttpHeadersBase,
+        HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders,
+        HttpAttributeHeaders, HttpAcceptHeaders)
 from occi.http.dataobject import DataObject, LinkRepr, URLTranslator
 
 _parsers = {}
@@ -103,8 +105,9 @@ class Parser(object):
         """Parse Accept header and store the accepted content types in
         :var accept_types:
         """
-        h = HttpWebHeadersBase()
-        for c_type, c_params in h.parse(header_value):
+        h = HttpAcceptHeaders()
+        h.parse(header_value)
+        for c_type, c_params in h.all_sorted():
             self.accept_types.append(c_type)
 
 class HeaderParser(Parser):
@@ -263,7 +266,7 @@ class TextPlainParser(Parser):
     >>> p = TextPlainParser()
     >>> p.parse(headers=headers, body=body)
     >>> p.accept_types
-    ['text/*', '*/*']
+    ['*/*', 'text/*']
     >>> p.objects[0].categories
     [Kind('network', 'http://schemes.ogf.org/occi/infrastructure#'), Mixin('ipnetwork', 'http://schemes.ogf.org/occi/infrastructure#')]
     >>> p.objects[0].links

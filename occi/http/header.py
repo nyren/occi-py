@@ -182,14 +182,41 @@ class HttpCategoryHeaders(HttpWebHeadersBase):
 class HttpAcceptHeaders(HttpWebHeadersBase):
     """HTTP Accept header.
 
-    >>> s = 'text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/x-xbitmap, */*;q=0.1'
+    >>> s = 'text/html;level=1, application/xml;q=0.9, application/xhtml+xml, text/*, image/png, */*;q=0.1'
     >>> h = HttpAcceptHeaders()
-    >>> h.parse(s)
-    [('text/html', []), ('application/xml', [('q', '0.9')]), ('application/xhtml+xml', []), ('image/png', []), ('image/x-xbitmap', []), ('*/*', [('q', '0.1')])]
+    >>> t = h.parse(s)
+    >>> t == h.all()
+    True
+    >>> h.all()
+    [('text/html', [('level', '1')]), ('application/xml', [('q', '0.9')]), ('application/xhtml+xml', []), ('text/*', []), ('image/png', []), ('*/*', [('q', '0.1')])]
+    >>> [t for t, params in h.all_sorted()]
+    ['text/html', 'application/xhtml+xml', 'image/png', 'application/xml', '*/*', 'text/*']
+    >>> s = 'text/plain;occi=1.1;q=0.9, */*, text/html, text/*'
+    >>> t = h.parse(s)
+    >>> [t for t, params in h.all_sorted()]
+    ['text/html', 'text/plain', 'text/*', '*/*']
+
 
     """
-    pass
 
+    def q(self, header):
+        accept_type, params = header
+        pref = 1.0
+        if accept_type == '*/*':
+            pref = -2.0
+        elif accept_type.endswith('/*'):
+            pref = -1.0
+        try:
+            for name, value in params:
+                if name == 'q':
+                    pref = float(value)
+                    break
+        except IndexError, ValueError:
+            pass
+        return pref
+
+    def all_sorted(self):
+        return sorted(self.all(), key=self.q, reverse=True)
 
 if __name__ == "__main__":
     import doctest
