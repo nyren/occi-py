@@ -70,7 +70,15 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
         self.set_status(response.status)
 
         # Response Headers
+        headers = {}
         for name, value in response.headers:
+            values = headers.get(name)
+            if values:
+                values += ', ' + value
+            else:
+                values = value
+            headers[name] = values
+        for name, value in headers.iteritems():
             self.set_header(name, value)
 
         # Set Server header
