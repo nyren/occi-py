@@ -51,7 +51,7 @@ ComputeKind = Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#',
         entity_type=Resource,
         location='compute/',
         attributes=(
-            Attribute('occi.compute.architecture', required=False, mutable=False),
+            Attribute('occi.compute.architecture', required=False, mutable=True),
             IntAttribute('occi.compute.cores', required=False, mutable=True),
             Attribute('occi.compute.hostname', required=False, mutable=True),
             FloatAttribute('occi.compute.speed', required=False, mutable=True),
