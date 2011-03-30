@@ -55,7 +55,7 @@ class DataObject(object):
         >>> compute.occi_set_applicable_action(ComputeStartActionCategory)
         >>> storage = StorageKind.entity_type(StorageKind)
         >>> storage.id = 'storage/234'
-        >>> storage.occi_set_attributes([('title', 'My Disk')], validate=False)
+        >>> storage.occi_set_attributes([('occi.core.title', 'My Disk')], validate=False)
         >>> link = StorageLinkKind.entity_type(StorageLinkKind)
         >>> link.id = 'link/storage/345'
         >>> link.target = storage
@@ -89,10 +89,10 @@ class DataObject(object):
                 l = LinkRepr(
                         target_location=self.translator.from_native(link.target.id),
                         target_categories=link.target.occi_list_categories(),
-                        target_title=link.target.occi_get_attribute('title'),
+                        target_title=link.target.occi_get_attribute('occi.core.title'),
                         link_location=self.translator.from_native(link.id))
                 link_attributes = link.occi_get_attributes(convert=True,
-                        exclude=('source', 'target'))
+                        exclude=('occi.core.source', 'occi.core.target'))
                 if link_attributes:
                     l.link_categories = link.occi_list_categories()
                     l.link_attributes = link_attributes
@@ -131,7 +131,7 @@ class DataObject(object):
         >>> entity.links[0].occi_list_categories()
         [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> entity.links[0].occi_get_attributes()
-        [('source', 'compute/123'), ('target', 'storage/234'), ('occi.storagelink.deviceid', 'ide:0:1')]
+        [('occi.core.source', 'compute/123'), ('occi.core.target', 'storage/234'), ('occi.storagelink.deviceid', 'ide:0:1')]
         >>> entity.links[0].target.occi_list_categories()
         [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> entity.links[0].target.occi_get_attributes()
@@ -190,8 +190,8 @@ class DataObject(object):
                 link.id = self.translator.to_native(link_repr.link_location)
                 link.target = target
                 default_attr = [
-                        ('source', self.location),
-                        ('target', link_repr.target_location)
+                        ('occi.core.source', self.location),
+                        ('occi.core.target', link_repr.target_location)
                 ]
                 link.occi_set_attributes(
                         default_attr + link_repr.link_attributes,

@@ -51,14 +51,14 @@ class HandlerTestCaseBase(unittest.TestCase):
         # Pre-populate backend: Compute Resources
         entities = []
         e = ComputeKind.entity_type(ComputeKind)
-        attrs = [('title', 'A "little" VM'), ('occi.compute.state', 'inactive')]
+        attrs = [('occi.core.title', 'A "little" VM'), ('occi.compute.state', 'inactive')]
         attrs.append(('occi.compute.memory', 5.0/3))
         e.occi_set_attributes(attrs, validate=False)
         e.occi_set_applicable_action(ComputeStartActionCategory)
         entities.append(e)
         #
         e = ComputeKind.entity_type(ComputeKind)
-        attrs = [('title', 'Another " VM'), ('occi.compute.state', 'active')]
+        attrs = [('occi.core.title', 'Another " VM'), ('occi.compute.state', 'active')]
         attrs.append(('occi.compute.speed', '2.33'))
         attrs.append(('occi.compute.memory', '4.0'))
         e.occi_set_attributes(attrs, validate=False)
@@ -71,7 +71,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         entities = []
         e = NetworkKind.entity_type(NetworkKind)
         e.occi_add_mixin(IPNetworkMixin)
-        attrs = [('title', 'Internet'), ('occi.network.state', 'active')]
+        attrs = [('occi.core.title', 'Internet'), ('occi.network.state', 'active')]
         attrs.append(('occi.network.address', '11.12.0.0/16'))
         attrs.append(('occi.network.gateway', '11.12.0.1'))
         attrs.append(('occi.network.allocation', 'static'))
@@ -79,7 +79,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         entities.append(e)
         #
         e = NetworkKind.entity_type(NetworkKind)
-        attrs = [('title', 'Private VLAN'), ('occi.network.state', 'active')]
+        attrs = [('occi.core.title', 'Private VLAN'), ('occi.network.state', 'active')]
         attrs.append(('occi.network.vlan', 123))
         e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
@@ -89,7 +89,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         # Pre-populate backend: Storage Resources
         entities = []
         e = StorageKind.entity_type(StorageKind)
-        attrs = [('title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
+        attrs = [('occi.core.title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
         entities.append(e)
         #
         self.storage_id = server.backend.save_entities(entities)
@@ -99,22 +99,22 @@ class HandlerTestCaseBase(unittest.TestCase):
         e = NetworkInterfaceKind.entity_type(NetworkInterfaceKind)
         e.occi_set_translator(self.translator)
         e.occi_add_mixin(IPNetworkInterfaceMixin)
-        attrs = [('title', 'Primary Interface'), ('occi.networkinterface.state', 'active')]
+        attrs = [('occi.core.title', 'Primary Interface'), ('occi.networkinterface.state', 'active')]
         attrs.append(('occi.networkinterface.interface', 'eth0'))
         attrs.append(('occi.networkinterface.mac', '00:11:22:33:44:55'))
         attrs.append(('occi.networkinterface.ip', '11.12.13.14'))
         attrs.append(('occi.networkinterface.allocation', 'static'))
-        attrs.append(('source', self.compute_id[0]))
-        attrs.append(('target', self.network_id[0]))
+        attrs.append(('occi.core.source', self.compute_id[0]))
+        attrs.append(('occi.core.target', self.network_id[0]))
         e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = StorageLinkKind.entity_type(StorageLinkKind)
         e.occi_set_translator(self.translator)
-        attrs = [('title', 'Boot drive'), ('occi.storagelink.state', 'active')]
+        attrs = [('occi.core.title', 'Boot drive'), ('occi.storagelink.state', 'active')]
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
-        attrs.append(('source', self.compute_id[0]))
-        attrs.append(('target', self.storage_id[0]))
+        attrs.append(('occi.core.source', self.compute_id[0]))
+        attrs.append(('occi.core.target', self.storage_id[0]))
         e.occi_set_attributes(attrs, validate=False)
         entities.append(e)
         #
@@ -206,12 +206,12 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; occi.core.title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
             self._loc(self.network_id[0]), self._loc(self.link_id[0])))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
             self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.compute_id[0]))
-        expected_body.append('X-OCCI-Attribute: title="A \\"little\\" VM"')
+        expected_body.append('X-OCCI-Attribute: occi.core.title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=1.67')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
         self._verify_body(response.body, expected_body)
@@ -222,11 +222,9 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(StorageLinkKind))
-        expected_body.append('X-OCCI-Attribute: title="Boot drive"')
-        expected_body.append('X-OCCI-Attribute: source="%s"' % self._loc(self.compute_id[0]))
-        expected_body.append('X-OCCI-Attribute: target="%s"' % self._loc(self.storage_id[0]))
-        #expected_body.append('X-OCCI-Attribute: source="%s"' % self.compute_id[0])
-        #expected_body.append('X-OCCI-Attribute: target="%s"' % self.storage_id[0])
+        expected_body.append('X-OCCI-Attribute: occi.core.title="Boot drive"')
+        expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % self._loc(self.compute_id[0]))
+        expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % self._loc(self.storage_id[0]))
         expected_body.append('X-OCCI-Attribute: occi.storagelink.deviceid="ide:0:0"')
         expected_body.append('X-OCCI-Attribute: occi.storagelink.state="active"')
         self._verify_body(response.body, expected_body)
@@ -274,7 +272,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.compute_id[1]))
-        expected_body.append('X-OCCI-Attribute: title="Another \\" VM"')
+        expected_body.append('X-OCCI-Attribute: occi.core.title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=2.00')
@@ -414,8 +412,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
-        request_headers.append(('x-occi-attribute', 'source="%s"' % source))
-        request_headers.append(('x-occi-attribute', 'target="%s"' % target))
+        request_headers.append(('x-occi-attribute', 'occi.core.source="%s"' % source))
+        request_headers.append(('x-occi-attribute', 'occi.core.target="%s"' % target))
         response = self._post(headers=request_headers)
 
         # Assume success
@@ -479,9 +477,9 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(len(response.headers), len(self.server.registry.all()) + 1)
 
         expected_headers = []
-        expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="title"'))
-        expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="summary"'))
-        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="source{required} target{required}"'))
+        expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="occi.core.title"'))
+        expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.summary"'))
+        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.source{required} occi.core.target{required}"'))
         self._verify_headers(response.headers[1:4], expected_headers)
 
     def test_put(self):

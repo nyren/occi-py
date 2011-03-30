@@ -490,23 +490,23 @@ class Entity(object):
 
         >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)])
         >>> entity = Entity(fooKind)
-        >>> attrs = [('summary', 'blah blah')]
+        >>> attrs = [('occi.core.summary', 'blah blah')]
         >>> entity.occi_set_attributes(attrs, validate=True)
         Traceback (most recent call last):
             File "core.py", line 362, in occi_set_attributes
                 raise self.RequiredAttribute(attribute.name)
         RequiredAttribute: "com.example.bar": Required attribute
-        >>> attrs += [('title', 'A "tiny" resource instance')]
+        >>> attrs += [('occi.core.title', 'A "tiny" resource instance')]
         >>> attrs += [('com.example.bar', 'Bar')]
         >>> entity.occi_set_attributes(attrs, validate=True)
         >>> entity.occi_get_attributes(convert=True)
-        [('title', 'A "tiny" resource instance'), ('summary', 'blah blah'), ('com.example.bar', 'Bar')]
-        >>> attrs += [('summary', 'duplicate')]
+        [('occi.core.title', 'A "tiny" resource instance'), ('occi.core.summary', 'blah blah'), ('com.example.bar', 'Bar')]
+        >>> attrs += [('occi.core.summary', 'duplicate')]
         >>> entity.occi_set_attributes(attrs, validate=True)
         Traceback (most recent call last):
             File "core.py", line 256, in occi_set_attributes
                 raise self.DuplicateAttribute(attr)
-        DuplicateAttribute: "summary": Duplicate attribute
+        DuplicateAttribute: "occi.core.summary": Duplicate attribute
 
         """
         # Load supplied attributes into a dictionary
@@ -614,7 +614,7 @@ EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
         entity_type=Entity,
         attributes=(
-            Attribute('title', required=False, mutable=True),
+            Attribute('occi.core.title', required=False, mutable=True),
         ),
 )
 
@@ -623,7 +623,7 @@ ResourceKind = Kind('resource', 'http://schemas.ogf.org/occi/core#',
         title='Resource type',
         entity_type=Resource,
         attributes=(
-            Attribute('summary', required=False, mutable=True),
+            Attribute('occi.core.summary', required=False, mutable=True),
         ),
 )
 
@@ -632,8 +632,8 @@ LinkKind = Kind('link', 'http://schemas.ogf.org/occi/core#',
         title='Link type',
         entity_type=Link,
         attributes=(
-            IDAttribute('source', required=True, mutable=False),
-            IDAttribute('target', required=True, mutable=True),
+            IDAttribute('occi.core.source', required=True, mutable=False),
+            IDAttribute('occi.core.target', required=True, mutable=True),
         ),
 )
 

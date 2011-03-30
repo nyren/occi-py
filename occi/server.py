@@ -139,7 +139,7 @@ class DummyBackend(ServerBackend):
     >>> storage = StorageKind.entity_type(StorageKind)
     >>> compute_id, storage_id = backend.save_entities([compute, storage])
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-    >>> link.occi_set_attributes([('source', compute_id), ('target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
+    >>> link.occi_set_attributes([('occi.core.source', compute_id), ('occi.core.target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
     >>> link_id = backend.save_entities([link])
     >>> len(backend.filter_entities())
     4
@@ -203,8 +203,8 @@ class DummyBackend(ServerBackend):
 
             # Links
             if isinstance(entity, Link):
-                source = self.get_entity(entity.occi_get_attribute('source'), user=user)
-                target = self.get_entity(entity.occi_get_attribute('target'), user=user)
+                source = self.get_entity(entity.occi_get_attribute('occi.core.source'), user=user)
+                target = self.get_entity(entity.occi_get_attribute('occi.core.target'), user=user)
                 entity.source = source
                 entity.target = target
                 links = []
