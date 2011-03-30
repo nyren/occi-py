@@ -481,7 +481,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         expected_headers = []
         expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="title"'))
         expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="summary"'))
-        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="source target"'))
+        expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="source{required} target{required}"'))
         self._verify_headers(response.headers[1:4], expected_headers)
 
     def test_put(self):

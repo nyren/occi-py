@@ -144,11 +144,18 @@ class HeaderRenderer(Renderer):
                 if category.related:
                     params.append(('rel',  category.related))
                 if category.attributes:
-                    attr_names=[]
+                    attr_defs=[]
                     for attr in category.unique_attributes:
-                        if attr.mutable or attr.required:
-                            attr_names.append(attr.name)
-                    params.append(('attributes', ' '.join(attr_names)))
+                        attr_props=[]
+                        if not attr.mutable and not attr.required:
+                            attr_props.append('immutable')
+                        elif attr.required:
+                            attr_props.append('required')
+                        attr_def = attr.name
+                        if attr_props:
+                            attr_def += '{%s}' % ' '.join(attr_props)
+                        attr_defs.append(attr_def)
+                    params.append(('attributes', ' '.join(attr_defs)))
                 if hasattr(category, 'location') and category.location:
                     params.append(('location',
                         obj.translator.from_native(category.location, path_only=True)))
