@@ -17,6 +17,8 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import re
+
 import tornado.web
 import tornado.httpserver
 import tornado.ioloop
@@ -79,7 +81,12 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
                 values = value
             headers[name] = values
         for name, value in headers.iteritems():
-            self.set_header(name, value)
+            try:
+                self.set_header(name, value)
+            except ValueError:
+                value = tornado.web._utf8(value)
+                value = re.sub(r"[\x00-\x1f]", " ", value)
+                self._headers[name] = value
 
         # Set Server header
         self.set_header('Server', occi.http.version_string)
