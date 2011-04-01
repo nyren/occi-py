@@ -17,6 +17,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import uuid
 from utils import unittest
 
 from occi.server import OCCIServer, DummyBackend
@@ -229,7 +230,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('X-OCCI-Attribute: occi.storagelink.state="active"')
         self._verify_body(response.body, expected_body)
 
-    def test_post(self):
+    def test_post_action(self):
         request_headers = []
         request_headers.append(('Category', 'stop; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request_headers.append(('x-occi-attribute', 'method="acpioff"'))
@@ -238,18 +239,12 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
 
-    def test_post_no_query(self):
-        request = HttpRequest([], '')
-        response = self.handler.post(request, 'blah/not/found')
-        self.assertEqual(response.status, 400)
-        self.assertEqual(response.body, 'Missing action query parameter')
-
-    def test_post_not_found(self):
+    def test_post_action_not_found(self):
         request = HttpRequest([], '', query_args={'action': 'stop'})
         response = self.handler.post(request, 'blah/not/found')
         self.assertEqual(response.status, 404)
 
-    def test_post_not_applicable(self):
+    def test_post_action_not_applicable(self):
         request_headers = []
         request_headers.append(('Category', 'start; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request = HttpRequest(request_headers, '', query_args={'action': ['start']})
@@ -257,16 +252,20 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.status, 400)
         self.assertEqual(response.body, 'start: action not applicable')
 
-    def test_put(self):
+    def test_post_update(self):
         entity_id = self.compute_id[1]
+        request_headers = [('accept', 'text/*;q=0.8, text/uri-list')]
         request_body = ''
         request_body += 'x-occi-attribute: occi.compute.cores=3\n'
         request_body += 'x-occi-attribute: occi.compute.speed=3.26, occi.compute.memory=2.0\n'
-        request = HttpRequest([], request_body, content_type='text/plain')
-        response = self.handler.put(request, entity_id)
+        request = HttpRequest(request_headers, request_body, content_type='text/plain')
+        response = self.handler.post(request, entity_id)
+        self.assertEqual(response.body, self._loc(entity_id) + '\r\n')
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
-        self.assertEqual(response.body, 'OK')
+        expected_headers = []
+        expected_headers.append(('Content-Type', 'text/uri-list'))
+        expected_headers.append(('Location', self._loc(entity_id)))
+        self._verify_headers(response.headers, expected_headers)
 
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
@@ -279,10 +278,47 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('X-OCCI-Attribute: occi.compute.state="active"')
         self._verify_body(get_response.body, expected_body)
 
-    def test_put_nonexisting(self):
+    def test_post_update_nonexisting(self):
         request = HttpRequest([], '')
-        response = self.handler.put(request, 'blah/not/found')
+        response = self.handler.post(request, 'blah/not/found')
         self.assertEqual(response.status, 404)
+
+    def test_put_new(self):
+        entity_id = 'network/%s' % uuid.uuid4()
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('Category', 'network; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        request_headers.append(('Category', 'ipnetwork; scheme=http://schemas.ogf.org/occi/infrastructure/network#'))
+        request_headers.append(('x-occi-attribute', 'occi.core.title="My VLAN"'))
+        request_headers.append(('x-occi-attribute', 'occi.network.vlan=91'))
+        request_headers.append(('x-occi-attribute', 'occi.network.address=192.168.1.100'))
+        request_headers.append(('x-occi-attribute', 'occi.network.gateway=192.168.1.1'))
+        request = HttpRequest(request_headers, '', content_type='text/occi')
+        response = self.handler.put(request, self._loc(entity_id))
+
+        # Assume success
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+
+        return entity_id
+
+    def test_put_existing(self):
+        entity_id = self.test_put_new()
+
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('Category', 'network; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        request_headers.append(('x-occi-attribute', 'occi.network.vlan=123'))
+        request = HttpRequest(request_headers, '', content_type='text/occi')
+        response = self.handler.put(request, entity_id)
+
+        # Assume success
+        self.assertEqual(response.body, 'OK')
+        self.assertEqual(response.status, 200)
+
+        get_response = self._get(entity_id=entity_id, accept_header='text/plain')
+        expected_body = []
+        expected_body.append(self._category_header(NetworkKind))
+        expected_body.append('X-OCCI-Attribute: occi.network.vlan=123')
+        self._verify_body(get_response.body, expected_body)
 
     def test_delete(self):
         entity_id = self.compute_id[0]

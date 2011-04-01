@@ -186,6 +186,14 @@ class EntityHandler(HandlerBase):
         return HttpResponse(renderer.headers, renderer.body)
 
     def post(self, request, entity_id):
+        """Update specific resource instance or execute an Action on a resource
+        instance."""
+        if request.query_args:
+            return self._post_action(request, entity_id)
+        else:
+            return self._post_update(request, entity_id)
+
+    def _post_action(self, request, entity_id):
         """Execute an Action on a resource instance."""
 
         # Action query argument
@@ -238,8 +246,57 @@ class EntityHandler(HandlerBase):
             response = hrc.ALL_OK()
         return response
 
-    def put(self, request, entity_id):
+    def _post_update(self, request, entity_id):
         """Update an existing resource instance."""
+        # Parse request
+        try:
+            parser, renderer = self._request_init(request)
+            entity = self._get_entity(entity_id, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Only a single data object allowed
+        if not parser.objects:
+            return hrc.BAD_REQUEST('No resource instance specified')
+        elif len(parser.objects) > 1:
+            return hrc.BAD_REQUEST('More than one resource instance specified')
+        dao = parser.objects[0]
+        dao.translator = self.translator
+
+        # Update entity object from request data
+        try:
+            dao.save_to_entity(entity=entity,
+                    category_registry=self.server.registry)
+        except DataObject.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+
+        # Save the updated entity object
+        try:
+            id_list = self._save_entities([entity], user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Response is a list of locations
+        dao_list = []
+        for entity_id in id_list:
+            dao_list.append(DataObject(
+                location=self.translator.from_native(entity_id)))
+
+        # Render response
+        renderer.render(dao_list)
+
+        # Set Location header to the first ID
+        renderer.headers.append(('Location', self.translator.from_native(id_list[0])))
+
+        return HttpResponse(renderer.headers, renderer.body)
+
+    def put(self, request, entity_id):
+        """Replace an existing resource instance or create a new resource
+        instance using the specified Entity ID.
+
+        Links associated with an existing Resource instance are not affected by
+        this operation.
+        """
         # Parse request
         try:
             parser, renderer = self._request_init(request)
@@ -254,20 +311,17 @@ class EntityHandler(HandlerBase):
         dao = parser.objects[0]
         dao.translator = self.translator
 
-        # Load entity object from backend
+        # Populate entity object from request data
         try:
-            entity = self._get_entity(entity_id, user=request.user)
-        except HttpRequestError as e:
-            return e.response
-
-        # Update entity object from request data
-        try:
-            dao.save_to_entity(entity=entity,
+            entity = dao.save_to_entity(save_links=False,
                     category_registry=self.server.registry)
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
 
-        # Save the updated entity object
+        # Set Entity ID as specified in request
+        entity.id = self.translator.to_native(entity_id)
+
+        # Replace entity object in backend
         try:
             id_list = self._save_entities([entity], user=request.user)
         except HttpRequestError as e:
