@@ -35,6 +35,8 @@ class TornadoHttpServer(HttpServer):
         self.application = tornado.web.Application([
             (self.base_path + r'/*/-/', TornadoRequestHandler,
                 dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
+            (self.base_path + r'/.well-known/org/ogf/occi/-/', TornadoRequestHandler,
+                dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
             (self.base_path + r'/', TornadoRequestHandler,
                 dict(handler=CollectionHandler(self.server, translator=self.translator), args=[''])),
             (self.base_path + r'/(.+/)', TornadoRequestHandler,
