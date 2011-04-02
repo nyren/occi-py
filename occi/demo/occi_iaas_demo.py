@@ -18,6 +18,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import logging
 import optparse
 import urlparse
 
@@ -70,7 +71,14 @@ if __name__ == "__main__":
     parser.add_option('-B', '--base_url', dest='base_url',
             default='http://localhost:8000/',
             help='For example "http://localhost:8000/"')
+    parser.add_option('-v', '--verbose', action='count', dest='verbose', default=0,
+            help="Increase verbosity level")
     (options, args) = parser.parse_args()
+
+    if options.verbose == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    elif options.verbose > 1:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     url = urlparse.urlparse(options.base_url)
 
