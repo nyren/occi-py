@@ -17,6 +17,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import logging
 import re
 
 import tornado.web
@@ -53,6 +54,7 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
         super(TornadoRequestHandler, self).__init__(application, request)
         self.handler = handler
         self.args = args
+        self.logger = logging.getLogger()
 
     def _handle_request(self, verb, *args):
         request = HttpRequest(
@@ -65,8 +67,29 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
             args = self.args
         response = getattr(self.handler, verb)(request, *args)
 
-#       print '%s.%s(%s): %d' % (self.handler.__class__.__name__,
-#               verb, args, response.status)
+        # Debugging
+        if self.logger.isEnabledFor(logging.DEBUG):
+            request_str = '%s %s HTTP/x.x\n' % (self.request.method, self.request.uri)
+            request_str += '\n'.join(['%s: %s' % (h, v) for h, v in self.request.headers.iteritems()])
+            request_str += '\n'
+            if self.request.body:
+                request_str += '\n'
+                request_str += self.request.body.rstrip()
+            response_str = 'HTTP/x.x %d\n' % response.status
+            response_str += '\n'.join(['%s: %s' % (h, v) for h, v in response.headers])
+            response_str += '\n'
+            if response.body:
+                response_str += '\n'
+                response_str += response.body.rstrip()
+            logging.debug("""%s.%s(%s): status=%d'
+-------- Request ---------
+%s
+-------- Response --------
+%s
+--------------------------""" % (
+                self.handler.__class__.__name__, verb, args, response.status,
+                request_str, response_str,
+                ))
 
         # Status code of response
         self.set_status(response.status)
