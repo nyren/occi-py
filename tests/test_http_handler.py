@@ -513,7 +513,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(len(response.headers), len(self.server.registry.all()) + 1)
 
         expected_headers = []
-        expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="occi.core.title"'))
+        expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="occi.core.id{immutable} occi.core.title"'))
         expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.summary"'))
         expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.source{required} occi.core.target{required}"'))
         self._verify_headers(response.headers[1:4], expected_headers)

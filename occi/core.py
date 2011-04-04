@@ -614,6 +614,9 @@ EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
         entity_type=Entity,
         attributes=(
+            # The occi.core.id attribute is not used by this library, it is
+            # present for compliance reasons only.
+            Attribute('occi.core.id', required=False, mutable=False),
             Attribute('occi.core.title', required=False, mutable=True),
         ),
 )
