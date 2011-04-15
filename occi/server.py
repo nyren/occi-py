@@ -45,7 +45,7 @@ class ServerBackend(object):
     def get_entity(self, entitiy_id, user=None):
         raise self.ServerBackendError('Server Backend must implement get_entity')
 
-    def filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
+    def filter_entities(self, categories=None, attributes=None, user=None):
         """Return a list of `Entity` objects matching the specified filter.
 
         The filter parameters are specified using the keyword arguments
@@ -53,22 +53,19 @@ class ServerBackend(object):
         returned `Entity` instances.
 
         :keyword categories: A list of `Category` instances a matching `Entity`
-            instance must be a member of.
+            instance must be a associated with.
         :keyword attributes: A list of attribute key-value pairs which must all
             be present in a matching `Entity` instance.
-        :keyword id_prefix: A string prefix which must match the start of the
-            `Entity` ID.
         :keyword user: The authenticated user.
         :return: A list of `Entity` instances matching the filter parameters.
         """
         raise self.ServerBackendError('Server Backend must implement filter_entities')
 
-    def save_entities(self, entities, id_prefix=None, user=None):
+    def save_entities(self, entities, user=None):
         """Save a set of entities (resource instances) in a single atomic
         operation.
 
         :param entities: A list of `Entity` objects to persist.
-        :keyword id_prefix: `Entity` ID prefix suggested by client for new object.
         :keyword user: The authenticated user.
         :return: A list IDs of the saved `Entity` objects.
         """
@@ -163,14 +160,10 @@ class DummyBackend(ServerBackend):
         except KeyError:
             raise Entity.DoesNotExist(entity_id)
 
-    def filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
+    def filter_entities(self, categories=None, attributes=None, user=None):
         result = []
         for entity_id, entity in self._db.iteritems():
             skip = False
-            # Filter on id_prefix
-            if id_prefix:
-                if not entity_id.startswith(id_prefix):
-                    continue
 
             # Filter on Categories
             cats = entity.occi_list_categories()
@@ -193,7 +186,7 @@ class DummyBackend(ServerBackend):
 
         return result
 
-    def save_entities(self, entities, id_prefix=None, user=None):
+    def save_entities(self, entities, user=None):
         id_list = []
         for entity in entities:
             # Generate ID if new instance
