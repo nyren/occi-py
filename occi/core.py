@@ -135,6 +135,10 @@ class CategoryRegistry(object):
     Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')
     >>> reg.lookup_location('storage/')
     Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')
+    >>> reg.lookup_recursive('/link/')
+    [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
+    >>> reg.lookup_recursive('/') == reg.all()
+    True
     >>> reg.unregister(StorageKind)
     >>> reg.unregister(ComputeKind)
     >>> reg.unregister(EntityKind) ; reg.unregister(ResourceKind) ; reg.unregister(LinkKind)
@@ -203,6 +207,19 @@ class CategoryRegistry(object):
     def lookup_location(self, path):
         loc = path.lstrip('/')
         return self._locations.get(loc)
+
+    def lookup_recursive(self, path):
+        """Find all categories registered at a location below the specified
+        path.
+        """
+        loc = path.lstrip('/')
+        if not loc:
+            return self.all()
+        categories = []
+        for location, category in self._locations.iteritems():
+            if location.startswith(loc):
+                categories.append(category)
+        return categories
 
     def all(self):
         return self._categories.values()
