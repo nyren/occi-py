@@ -21,6 +21,7 @@ try:
     from ordereddict import OrderedDict
 except ImportError:
     OrderedDict = dict
+import uuid
 
 class Attribute(object):
     class Invalid(Exception):
@@ -68,12 +69,25 @@ class BoolAttribute(Attribute):
         else:
             raise self.Invalid(self.name, s)
 
-class IDAttribute(Attribute):
+class UUIDAttribute(Attribute):
+    def to_native(self, s, **kwargs):
+        i = s.rfind('/')
+        if i > -1 and i < len(s)-1:
+            s = s[i+1:]
+        try:
+            return uuid.UUID(s)
+        except ValueError:
+            raise self.Invalid(self.name, s)
+
+    def from_native(self, u, **kwargs):
+        return u.urn
+
+class ResourceAttribute(Attribute):
     def to_native(self, s, translator=None, **kwargs):
         return translator.to_native(s)
 
-    def from_native(self, s, translator=None, **kwargs):
-        return translator.from_native(s)
+    def from_native(self, resource, translator=None, **kwargs):
+        return translator.from_native(resource)
 
 class Category(object):
     """The OCCI Category type."""
@@ -359,20 +373,22 @@ class Action(object):
         return params
     parameters = property(_get_occi_parameters)
 
-class IDTranslator(object):
+class ReferenceTranslator(object):
     """Translate Entity ID between native (internal) and external
     representation.
 
     Extend this class to implement another translation mechanism. Simply
-    override the to_native() and from_native methods.
+    override the to_native() and from_native() methods.
 
     The OCCI Http Rendering provides an URL translator suitable for mapping
-    URLs to Entity IDs. See occi.http.URLTranslator.
+    URLs to Entity IDs. See occi.http.dataobject.URLTranslator.
     """
     def to_native(self, ext, **kwargs):
-        return str(ext)
-    def from_native(self, entity_id, **kwargs):
-        return str(entity_id)
+        entity = Entity(EntityKind)
+        entity.occi_set_attributes([('occi.core.id', ext)], validate=False)
+        return entity
+    def from_native(self, entity, **kwargs):
+        return entity.id
 
 class Entity(object):
     """The OCCI Entity (abstract) type.
@@ -381,7 +397,7 @@ class Entity(object):
     Entity type and any sub-type thereof MUST have its own unique identifying
     Kind instance.
 
-    A 'resource instance' is an instance of a sub-type of Entity.
+    A "resource instance" is an instance of a sub-type of Entity.
     """
 
     class EntityError(Exception):
@@ -415,13 +431,12 @@ class Entity(object):
         _name = 'Required attribute'
 
     def __init__(self, kind, mixins=[]):
-        self.id = None
         self._occi_kind = None
         self._occi_mixins = {}
         self._occi_attributes = {}
         self._occi_actions_available = {}
         self._occi_actions_applicable = {}
-        self._occi_translator = IDTranslator()
+        self._occi_translator = ReferenceTranslator()
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
@@ -432,6 +447,10 @@ class Entity(object):
         # Add additional Mixins
         for mixin in mixins:
             self.occi_add_mixin(mixin)
+
+    def _occi_get_id(self):
+        return self.occi_get_attribute('occi.core.id')
+    id = property(_occi_get_id)
 
     def _add_actions_available(self, actions=[]):
         for category in actions:
@@ -618,11 +637,30 @@ class Entity(object):
             self._occi_actions_applicable.pop(cat_id, None)
 
 class Resource(Entity):
+    """OCCI Resource type.
+
+    The links attribute MUST be populated by a ServerBackend. The links
+    attribute will ALWAYS be None for Resources submitted to a ServerBackend.
+
+    >>> resource = Resource(ResourceKind)
+    >>> resource_id = uuid.uuid4()
+    >>> resource.occi_set_attributes([('occi.core.summary', 'Test Resource')])
+    """
     def __init__(self, kind, links=None, **kwargs):
         super(Resource, self).__init__(kind, **kwargs)
         self.links = links or []
 
 class Link(Entity):
+    """OCCI Link type.
+
+    The target attribute MUST be populated by a ServerBackend. The target
+    attribute will ALWAYS be None for Links submitted to a ServerBackend.
+
+    >>> source_id = uuid.uuid4()
+    >>> target_id = uuid.uuid4()
+    >>> link = Link(LinkKind)
+    >>> link.occi_set_attributes([('occi.core.source', source_id.urn), ('occi.core.target', target_id.urn)])
+    """
     def __init__(self, kind, target=None, **kwargs):
         super(Link, self).__init__(kind, **kwargs)
         self.target = target
@@ -631,7 +669,7 @@ EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
         entity_type=Entity,
         attributes=(
-            Attribute('occi.core.id', required=False, mutable=False),
+            UUIDAttribute('occi.core.id', required=False, mutable=False),
             Attribute('occi.core.title', required=False, mutable=True),
         ),
 )
@@ -650,8 +688,8 @@ LinkKind = Kind('link', 'http://schemas.ogf.org/occi/core#',
         title='Link type',
         entity_type=Link,
         attributes=(
-            IDAttribute('occi.core.source', required=True, mutable=False),
-            IDAttribute('occi.core.target', required=True, mutable=True),
+            ResourceAttribute('occi.core.source', required=True, mutable=False),
+            ResourceAttribute('occi.core.target', required=True, mutable=True),
         ),
 )
 
