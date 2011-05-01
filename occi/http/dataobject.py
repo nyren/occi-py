@@ -18,8 +18,9 @@
 #
 
 import urlparse
+import uuid
 
-from occi.core import Category, Kind, Mixin, Resource, Link, Action, IDTranslator
+from occi.core import Category, Kind, Mixin, Resource, Link, Action, ReferenceTranslator
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -50,29 +51,26 @@ class DataObject(object):
 
         >>> from occi.ext.infrastructure import *
         >>> compute = ComputeKind.entity_type(ComputeKind)
-        >>> compute.id = 'compute/123'
-        >>> compute.occi_set_attributes([('occi.compute.speed', 7.0/3)], validate=False)
+        >>> compute.occi_set_attributes([('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 7.0/3)], validate=False)
         >>> compute.occi_set_applicable_action(ComputeStartActionCategory)
         >>> storage = StorageKind.entity_type(StorageKind)
-        >>> storage.id = 'storage/234'
-        >>> storage.occi_set_attributes([('occi.core.title', 'My Disk')], validate=False)
+        >>> storage.occi_set_attributes([('occi.core.id', '20000000-0000-4000-0000-000000000000'), ('occi.core.title', 'My Disk')], validate=False)
         >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-        >>> link.id = 'link/storage/345'
         >>> link.target = storage
-        >>> link.occi_set_attributes([('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
+        >>> link.occi_set_attributes([('occi.core.id', '30000000-0000-4000-0000-000000000000'), ('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
         >>> compute.links.append(link)
         >>> d = DataObject(translator=URLTranslator('/api/'))
         >>> d.load_from_entity(compute)
         >>> d.location
-        '/api/compute/123'
+        '/api/compute/10000000-0000-4000-0000-000000000000'
         >>> d.categories
         [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> d.attributes
-        [('occi.compute.speed', 2.3333333333333335)]
+        [('occi.core.id', 'urn:uuid:10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 2.3333333333333335)]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
-        [('/api/storage/234', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('/api/compute/123?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
+        [('/api/storage/20000000-0000-4000-0000-000000000000', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('/api/compute/10000000-0000-4000-0000-000000000000?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
-        [('/api/link/storage/345', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
+        [('/api/link/storage/30000000-0000-4000-0000-000000000000', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.core.id', 'urn:uuid:30000000-0000-4000-0000-000000000000'), ('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
 
         """
         # Set location translator for Entity instance
@@ -81,16 +79,16 @@ class DataObject(object):
         # Get Entity Kind, Mixins, Attributes and ID
         self.categories = entity.occi_list_categories()
         self.attributes = entity.occi_get_attributes(convert=True)
-        self.location = self.translator.from_native(entity.id)
+        self.location = self.translator.from_native(entity)
 
         # Links
         if isinstance(entity, Resource):
             for link in entity.links:
                 l = LinkRepr(
-                        target_location=self.translator.from_native(link.target.id),
+                        target_location=self.translator.from_native(link.target),
                         target_categories=link.target.occi_list_categories(),
                         target_title=link.target.occi_get_attribute('occi.core.title'),
-                        link_location=self.translator.from_native(link.id))
+                        link_location=self.translator.from_native(link))
                 link_attributes = link.occi_get_attributes(convert=True,
                         exclude=('occi.core.source', 'occi.core.target'))
                 if link_attributes:
@@ -103,7 +101,7 @@ class DataObject(object):
         for action in entity.occi_list_applicable_actions():
             l = LinkRepr(
                     target_location='%s?action=%s' % (
-                        self.translator.from_native(entity.id, path_only=True),
+                        self.translator.from_native(entity, path_only=True),
                         action.term),
                     target_categories=[action],
                     target_title=action.title)
@@ -167,15 +165,6 @@ class DataObject(object):
             if not isinstance(entity, Resource):
                 raise self.Invalid('Links only applicable to the Resource type')
             for link_repr in self.links:
-                # Initialise target Resource
-                t_kind, t_mixins = self._resolve_categories(
-                        link_repr.target_categories, category_registry)
-                target = t_kind.entity_type(t_kind, mixins=t_mixins)
-                target.occi_set_translator(self.translator)
-                if not isinstance(target, Resource):
-                    raise self.Invalid('Link target must be a Resource type')
-                target.id = self.translator.to_native(link_repr.target_location)
-
                 # Initialise Link instance
                 try:
                     l_kind, l_mixins = self._resolve_categories(
@@ -187,12 +176,13 @@ class DataObject(object):
                 link.occi_set_translator(self.translator)
                 if not isinstance(link, Link):
                     raise self.Invalid('Relation must be a Link type')
-                link.id = self.translator.to_native(link_repr.link_location)
-                link.target = target
                 default_attr = [
                         ('occi.core.source', self.location),
                         ('occi.core.target', link_repr.target_location)
                 ]
+                if link_repr.link_location:
+                        default_attr.append(('occi.core.id',
+                            self.translator.to_native(link_repr.link_location)))
                 link.occi_set_attributes(
                         default_attr + link_repr.link_attributes,
                         validate=validate_attr)
@@ -272,25 +262,36 @@ class LinkRepr(object):
         self.link_categories = link_categories or []
         self.link_attributes = link_attributes or []
 
-class URLTranslator(IDTranslator):
-    """Translates between Entity ID and Location URL"""
+class URLTranslator(ReferenceTranslator):
+    """Translates between Entity ID and Location URL
+
+    >>> translator = HttpReferenceTranslator('http://example.com/api/')
+    """
     def __init__(self, base_url):
         t = urlparse.urlparse(base_url.rstrip('/'))
         self.base_url = t.geturl()
         self.base_path = t.path.rstrip('/')
 
-    def from_native(self, entity_id, path_only=False):
+    def from_native(self, entity, path_only=False):
+        s = str(entity.id)
+        kind = entity.occi_get_kind()
+        if hasattr(kind, 'location'):
+            s = kind.location + s
         if path_only:
-            return '%s/%s' % (self.base_path, entity_id)
-        return '%s/%s' % (self.base_url, entity_id)
+            return '%s/%s' % (self.base_path, s)
+        return '%s/%s' % (self.base_url, s)
 
     def to_native(self, location):
-        i = 0
-        if location.startswith(self.base_url):
-            i = len(self.base_url)
-        elif location.startswith(self.base_path):
-            i = len(self.base_path)
-        return location[i:].lstrip('/')
+#       i = 0
+#       if location.startswith(self.base_url):
+#           i = len(self.base_url)
+#       elif location.startswith(self.base_path):
+#           i = len(self.base_path)
+#       return location[i:].lstrip('/')
+        i = location.rfind('/')
+        if i + 1 >= len(location):
+            return None
+        return location[i+1:]
 
 if __name__ == "__main__":
     import doctest
