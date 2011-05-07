@@ -321,6 +321,7 @@ class URLTranslator(ReferenceTranslator):
 #           i = len(self.base_path)
 #       return location[i:].lstrip('/')
         entity_id = None
+        location = str(location)
         i = location.rfind('/')
         if i + 1 < len(location):
             entity_id = location[i+1:]

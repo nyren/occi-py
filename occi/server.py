@@ -132,11 +132,11 @@ class DummyBackend(ServerBackend):
     >>> from occi.ext.infrastructure import *
     >>> t = backend.save_entities([ComputeKind.entity_type(ComputeKind)])
     >>> compute = ComputeKind.entity_type(ComputeKind)
-    >>> compute.occi_set_attributes([('occi.compute.memory', '2.0')])
+    >>> compute.occi_import_attributes([('occi.compute.memory', '2.0')])
     >>> storage = StorageKind.entity_type(StorageKind)
     >>> compute_id, storage_id = backend.save_entities([compute, storage])
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-    >>> link.occi_set_attributes([('occi.core.source', compute_id), ('occi.core.target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
+    >>> link.occi_import_attributes([('occi.core.source', compute_id), ('occi.core.target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
     >>> link_id = backend.save_entities([link])
     >>> len(backend.filter_entities())
     4
@@ -191,15 +191,12 @@ class DummyBackend(ServerBackend):
         for entity in entities:
             # Generate ID if new instance
             if not entity.id:
-                loc = entity.occi_get_kind().location or ''
-                entity.id = '%s%s' % (loc, uuid.uuid4())
+                entity.occi_set_attribute('occi.core.id', uuid.uuid4())
 
             # Links
             if isinstance(entity, Link):
-                source = self.get_entity(entity.occi_get_attribute('occi.core.source'), user=user)
-                target = self.get_entity(entity.occi_get_attribute('occi.core.target'), user=user)
-                entity.source = source
-                entity.target = target
+                source = self.get_entity(entity.occi_get_attribute('occi.core.source').id, user=user)
+                target = self.get_entity(entity.occi_get_attribute('occi.core.target').id, user=user)
                 links = []
                 for l in source.links:
                     if l.id != source.id:
