@@ -51,12 +51,12 @@ class DataObject(object):
 
         >>> from occi.ext.infrastructure import *
         >>> compute = ComputeKind.entity_type(ComputeKind)
-        >>> compute.occi_set_attributes([('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 7.0/3)], validate=False)
+        >>> compute.occi_import_attributes([('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 7.0/3)], validate=False)
         >>> compute.occi_set_applicable_action(ComputeStartActionCategory)
         >>> storage = StorageKind.entity_type(StorageKind)
-        >>> storage.occi_set_attributes([('occi.core.id', '20000000-0000-4000-0000-000000000000'), ('occi.core.title', 'My Disk')], validate=False)
+        >>> storage.occi_import_attributes([('occi.core.id', '20000000-0000-4000-0000-000000000000'), ('occi.core.title', 'My Disk')], validate=False)
         >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-        >>> link.occi_set_attributes([('occi.core.id', '30000000-0000-4000-0000-000000000000'), ('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
+        >>> link.occi_import_attributes([('occi.core.id', '30000000-0000-4000-0000-000000000000'), ('occi.storagelink.deviceid', 'ide:0:1')], validate=False)
         >>> link.occi_set_attribute('occi.core.source', compute)
         >>> link.occi_set_attribute('occi.core.target', storage)
         >>> compute.links.append(link)
@@ -79,7 +79,7 @@ class DataObject(object):
 
         # Get Entity Kind, Mixins, Attributes and ID
         self.categories = entity.occi_list_categories()
-        self.attributes = entity.occi_get_attributes(convert=True)
+        self.attributes = entity.occi_export_attributes(convert=True)
         self.location = self.translator.from_native(entity)
 
         # Links
@@ -92,7 +92,7 @@ class DataObject(object):
                     print "%s: occi.core.target not defined" % link.id
                     continue
                 link_attributes = {}
-                for attr, value in link.occi_get_attributes(convert=True):
+                for attr, value in link.occi_export_attributes(convert=True):
                     link_attributes[attr] = value
                 l = LinkRepr(
                         target_location=link_attributes['occi.core.target'],
@@ -141,7 +141,7 @@ class DataObject(object):
         2330.0
         >>> entity.links[0].occi_list_categories()
         [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')]
-        >>> attr = entity.links[0].occi_get_attributes()
+        >>> attr = entity.links[0].occi_export_attributes(convert=False)
         >>> attr[0]
         ('occi.core.id', UUID('30000000-0000-4000-0000-000000000000'))
         >>> attr[1][0]
@@ -178,7 +178,7 @@ class DataObject(object):
         entity.occi_set_translator(self.translator)
 
         # Load attributes
-        entity.occi_set_attributes(self.attributes, validate=validate_attr)
+        entity.occi_import_attributes(self.attributes, validate=validate_attr)
 
         # Load Link relations
         if save_links and self.links:
@@ -201,10 +201,10 @@ class DataObject(object):
                         ('occi.core.target', link_repr.target_location)
                 ]
                 if link_repr.link_location:
-                        link.occi_set_attributes(
+                        link.occi_import_attributes(
                                 [('occi.core.id', link_repr.link_location)],
                                 validate=False)
-                link.occi_set_attributes(
+                link.occi_import_attributes(
                         default_attr + link_repr.link_attributes,
                         validate=validate_attr)
 
@@ -289,7 +289,7 @@ class URLTranslator(ReferenceTranslator):
     >>> from occi.ext.infrastructure import *
     >>> translator = URLTranslator('http://example.com/api/')
     >>> compute = ComputeKind.entity_type(ComputeKind)
-    >>> compute.occi_set_attributes([('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.cores', 4)], validate=False)
+    >>> compute.occi_import_attributes([('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.cores', 4)], validate=False)
     >>> s = translator.from_native(compute)
     >>> s
     'http://example.com/api/compute/10000000-0000-4000-0000-000000000000'
@@ -307,7 +307,7 @@ class URLTranslator(ReferenceTranslator):
     def from_native(self, entity, path_only=False):
         s = str(entity.id)
         kind = entity.occi_get_kind()
-        if hasattr(kind, 'location'):
+        if hasattr(kind, 'location') and kind.location:
             s = kind.location + s
         if path_only:
             return '%s/%s' % (self.base_path, s)
@@ -325,7 +325,7 @@ class URLTranslator(ReferenceTranslator):
         if i + 1 < len(location):
             entity_id = location[i+1:]
         entity = Entity(EntityKind)
-        entity.occi_set_attributes([('occi.core.id', entity_id)], validate=False)
+        entity.occi_import_attributes([('occi.core.id', entity_id)], validate=False)
         return entity
 
 if __name__ == "__main__":

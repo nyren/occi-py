@@ -393,7 +393,7 @@ class ReferenceTranslator(object):
     """
     def to_native(self, ext, **kwargs):
         entity = Entity(EntityKind)
-        entity.occi_set_attributes([('occi.core.id', ext)], validate=False)
+        entity.occi_import_attributes([('occi.core.id', ext)], validate=False)
         return entity
     def from_native(self, entity, **kwargs):
         return entity.id
@@ -506,8 +506,9 @@ class Entity(object):
         """Set single OCCI attribute (native) value."""
         self._occi_attributes[name] = value
 
-    def occi_get_attributes(self, convert=False, exclude=()):
-        """Get list of OCCI attribute key-value pairs.
+    def occi_export_attributes(self, convert=True, exclude=()):
+        """Export the OCCI attributes defined for this resource instance as a
+        list key-value pairs.
 
         :keyword convert: If True convert from OCCI native format to external
             representation.
@@ -529,30 +530,34 @@ class Entity(object):
                     attr_list.append((attribute.name, value))
         return attr_list
 
-    def occi_set_attributes(self, attr_list, validate=True):
-        """Set the values of the OCCI attributes defined for this resource
+    def occi_import_attributes(self, attr_list, convert=True, validate=True):
+        """Import values for the OCCI attributes defined for this resource
         instance.
 
+        All attribute values are expected in external" representation.
+
         :param attr_list: List of key-value tuples
-        :param validate: Boolean whether to validate the attribute set
+        :keyword convert: If True convert from external representation to
+            OCCI native format.
+        :keyword validate: Boolean whether to validate the attribute set
 
         >>> fooKind = Kind('foo', 'http://example.com/occi#', title='Foo', related=ResourceKind, attributes=[Attribute('com.example.bar', required=True, mutable=True)])
         >>> entity = Entity(fooKind)
         >>> attrs = [('occi.core.summary', 'blah blah')]
-        >>> entity.occi_set_attributes(attrs, validate=True)
+        >>> entity.occi_import_attributes(attrs, validate=True)
         Traceback (most recent call last):
-            File "core.py", line 362, in occi_set_attributes
+            File "core.py", line 362, in occi_import_attributes
                 raise self.RequiredAttribute(attribute.name)
         RequiredAttribute: "com.example.bar": Required attribute
         >>> attrs += [('occi.core.title', 'A "tiny" resource instance')]
         >>> attrs += [('com.example.bar', 'Bar')]
-        >>> entity.occi_set_attributes(attrs, validate=True)
-        >>> entity.occi_get_attributes(convert=True)
+        >>> entity.occi_import_attributes(attrs, validate=True)
+        >>> entity.occi_export_attributes(convert=True)
         [('occi.core.title', 'A "tiny" resource instance'), ('occi.core.summary', 'blah blah'), ('com.example.bar', 'Bar')]
         >>> attrs += [('occi.core.summary', 'duplicate')]
-        >>> entity.occi_set_attributes(attrs, validate=True)
+        >>> entity.occi_import_attributes(attrs, validate=True)
         Traceback (most recent call last):
-            File "core.py", line 256, in occi_set_attributes
+            File "core.py", line 256, in occi_import_attributes
                 raise self.DuplicateAttribute(attr)
         DuplicateAttribute: "occi.core.summary": Duplicate attribute
 
@@ -578,9 +583,12 @@ class Entity(object):
                     #  - attribute.required == True and attribute.mutable == False and attribute not yet specified (write once)
                     if not validate or attribute.mutable or (
                             attribute.required and attribute.name not in self._occi_attributes):
-                        # Convert and save new attibute value
-                        self._occi_attributes[attribute.name] = attribute.to_native(value,
+                        # Convert attribute value to native format
+                        if convert:
+                            value = attribute.to_native(value,
                                 translator=self._occi_translator)
+                        # Save the new attibute value
+                        self._occi_attributes[attribute.name] = value
                     else:
                         raise self.ImmutableAttribute(attribute.name)
 
@@ -656,7 +664,7 @@ class Resource(Entity):
 
     >>> resource = Resource(ResourceKind)
     >>> resource_id = uuid.uuid4()
-    >>> resource.occi_set_attributes([('occi.core.summary', 'Test Resource')])
+    >>> resource.occi_import_attributes([('occi.core.summary', 'Test Resource')])
     """
     def __init__(self, kind, links=None, **kwargs):
         super(Resource, self).__init__(kind, **kwargs)
@@ -671,7 +679,7 @@ class Link(Entity):
     >>> source_id = uuid.uuid4()
     >>> target_id = uuid.uuid4()
     >>> link = Link(LinkKind)
-    >>> link.occi_set_attributes([('occi.core.source', source_id.urn), ('occi.core.target', target_id.urn)])
+    >>> link.occi_import_attributes([('occi.core.source', source_id.urn), ('occi.core.target', target_id.urn)])
     """
     def __init__(self, kind, target=None, **kwargs):
         super(Link, self).__init__(kind, **kwargs)
