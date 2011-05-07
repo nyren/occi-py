@@ -71,6 +71,7 @@ class BoolAttribute(Attribute):
 
 class UUIDAttribute(Attribute):
     def to_native(self, s, **kwargs):
+        s = str(s)
         i = s.rfind('/')
         if i > -1 and i < len(s)-1:
             s = s[i+1:]
@@ -83,6 +84,14 @@ class UUIDAttribute(Attribute):
         return u.urn
 
 class ResourceAttribute(Attribute):
+    """An attribute represanting an OCCI Resource instance.
+
+    The native (internal) representation is an Resource object while the
+    external is an identifier which can be translated into an Entity ID
+    (occi.core.id).
+
+    The format of the external identifier is defined by the translator.
+    """
     def to_native(self, s, translator=None, **kwargs):
         return translator.to_native(s)
 
@@ -374,8 +383,7 @@ class Action(object):
     parameters = property(_get_occi_parameters)
 
 class ReferenceTranslator(object):
-    """Translate Entity ID between native (internal) and external
-    representation.
+    """Translate Entity between native (internal) and external representation.
 
     Extend this class to implement another translation mechanism. Simply
     override the to_native() and from_native() methods.
@@ -491,8 +499,12 @@ class Entity(object):
         self._occi_translator = translator
 
     def occi_get_attribute(self, name):
-        """Get single OCCI attribute value."""
+        """Get single OCCI attribute (native) value."""
         return self._occi_attributes.get(name)
+
+    def occi_set_attribute(self, name, value):
+        """Set single OCCI attribute (native) value."""
+        self._occi_attributes[name] = value
 
     def occi_get_attributes(self, convert=False, exclude=()):
         """Get list of OCCI attribute key-value pairs.
@@ -663,7 +675,6 @@ class Link(Entity):
     """
     def __init__(self, kind, target=None, **kwargs):
         super(Link, self).__init__(kind, **kwargs)
-        self.target = target
 
 EntityKind = Kind('entity', 'http://schemas.ogf.org/occi/core#',
         title='Entity type',
