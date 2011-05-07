@@ -54,7 +54,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e = ComputeKind.entity_type(ComputeKind)
         attrs = [('occi.core.title', 'A "little" VM'), ('occi.compute.state', 'inactive')]
         attrs.append(('occi.compute.memory', 5.0/3))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         e.occi_set_applicable_action(ComputeStartActionCategory)
         entities.append(e)
         #
@@ -62,7 +62,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs = [('occi.core.title', 'Another " VM'), ('occi.compute.state', 'active')]
         attrs.append(('occi.compute.speed', '2.33'))
         attrs.append(('occi.compute.memory', '4.0'))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         e.occi_set_applicable_action(ComputeStopActionCategory)
         entities.append(e)
         #
@@ -76,13 +76,13 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.network.address', '11.12.0.0/16'))
         attrs.append(('occi.network.gateway', '11.12.0.1'))
         attrs.append(('occi.network.allocation', 'static'))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = NetworkKind.entity_type(NetworkKind)
         attrs = [('occi.core.title', 'Private VLAN'), ('occi.network.state', 'active')]
         attrs.append(('occi.network.vlan', 123))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
         self.network_id = server.backend.save_entities(entities)
@@ -107,7 +107,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.networkinterface.allocation', 'static'))
         attrs.append(('occi.core.source', self.compute_id[0]))
         attrs.append(('occi.core.target', self.network_id[0]))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
         e = StorageLinkKind.entity_type(StorageLinkKind)
@@ -116,7 +116,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
         attrs.append(('occi.core.source', self.compute_id[0]))
         attrs.append(('occi.core.target', self.storage_id[0]))
-        e.occi_set_attributes(attrs, validate=False)
+        e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
         self.link_id = server.backend.save_entities(entities)
@@ -421,10 +421,10 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_resource(self):
         request_headers = [('accept', 'text/plain')]
-        request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        #request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.compute.speed=2.66'))
         request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
-        response = self._post(headers=request_headers, content_type='text/occi')
+        response = self._post(path='/compute/', headers=request_headers, content_type='text/occi')
 
         # Assume success
         self.assertEqual(response.status, 200)
@@ -450,7 +450,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
         request_headers.append(('x-occi-attribute', 'occi.core.source="%s"' % source))
         request_headers.append(('x-occi-attribute', 'occi.core.target="%s"' % target))
-        response = self._post(headers=request_headers)
+        response = self._post(path='/', headers=request_headers)
 
         # Assume success
         self.assertEqual(response.status, 200)
@@ -471,8 +471,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'start; scheme=http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         response = self._post(headers=request_headers, path=path, query_args={'action': ['start']})
 
-        # Assume success
-        self.assertEqual(response.status, 501)
+        # Expect bad request, action on name-space path not supported
+        self.assertEqual(response.status, 400)
 
     def test_post_action_compute(self):
         self.test_post_action(path=self.translator.from_native(ComputeKind.location))
