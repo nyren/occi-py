@@ -67,7 +67,7 @@ class ServerBackend(object):
 
         :param entities: A list of `Entity` objects to persist.
         :keyword user: The authenticated user.
-        :return: A list IDs of the saved `Entity` objects.
+        :return: A list of the persisted `Entity` objects.
         """
         raise self.ServerBackendError('Server Backend must implement save_entities')
 
@@ -134,20 +134,20 @@ class DummyBackend(ServerBackend):
     >>> compute = ComputeKind.entity_type(ComputeKind)
     >>> compute.occi_import_attributes([('occi.compute.memory', '2.0')])
     >>> storage = StorageKind.entity_type(StorageKind)
-    >>> compute_id, storage_id = backend.save_entities([compute, storage])
+    >>> s_compute, s_storage = backend.save_entities([compute, storage])
     >>> link = StorageLinkKind.entity_type(StorageLinkKind)
-    >>> link.occi_import_attributes([('occi.core.source', compute_id), ('occi.core.target', storage_id), ('occi.storagelink.deviceid', 'ide:0:0')])
-    >>> link_id = backend.save_entities([link])
+    >>> link.occi_import_attributes([('occi.core.source', s_compute.id), ('occi.core.target', s_storage.id), ('occi.storagelink.deviceid', 'ide:0:0')])
+    >>> s_link = backend.save_entities([link])
     >>> len(backend.filter_entities())
     4
     >>> len(backend.filter_entities(categories=[ComputeKind]))
     2
     >>> len(backend.filter_entities(categories=[ComputeKind], attributes=[('occi.compute.memory', 2.0)]))
     1
-    >>> backend.get_entity(compute_id) == compute
+    >>> backend.get_entity(s_compute.id) == compute
     True
-    >>> backend.delete_entities(t)
-    >>> [entity.id for entity in backend.filter_entities(categories=[ComputeKind])] == [compute_id]
+    >>> backend.delete_entities([entity.id for entity in t])
+    >>> [entity.id for entity in backend.filter_entities(categories=[ComputeKind])] == [s_compute.id]
     True
     """
 
@@ -187,7 +187,7 @@ class DummyBackend(ServerBackend):
         return result
 
     def save_entities(self, entities, user=None):
-        id_list = []
+        saved_entities = []
         for entity in entities:
             # Generate ID if new instance
             if not entity.id:
@@ -205,8 +205,8 @@ class DummyBackend(ServerBackend):
                 source.links = links
 
             self._db[entity.id] = entity
-            id_list.append(entity.id)
-        return id_list
+            saved_entities.append(entity)
+        return saved_entities
 
     def delete_entities(self, entity_ids, user=None):
         for entity_id in entity_ids:
