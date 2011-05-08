@@ -17,7 +17,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from occi.core import Category, Entity, Mixin
+from occi.core import Category, Kind, Mixin, Entity
 from occi.server import ServerBackend
 from occi.http import get_parser, get_renderer
 from occi.http.header import HttpHeaderError
@@ -117,12 +117,27 @@ class HandlerBase(object):
             print e
             raise HttpRequestError(hrc.SERVER_ERROR())
 
-    def _filter_entities(self, categories=None, attributes=None, id_prefix=None, user=None):
+    def _filter_entities(self, categories=None, attributes=None, dao_filter=None, user=None):
         """Filter entity objects from backend."""
+        category_filter = categories or []      # FIXME - copy?
+        attribute_filter = attributes or []
+
+        # Category and attribute filters
+        if dao_filter:
+            dao = dao_filter[0]
+            dao.translator = self.translator
+            for category in dao.categories:
+                try:
+                    category_filter.append(self.server.registry.lookup_id(category))
+                except Category.DoesNotExist as e:
+                    return hrc.BAD_REQUEST(e)
+            # FIXME - what about converting value to indicated type?
+            attribute_filter.extend(dao.attributes)
         try:
             return self.server.backend.filter_entities(
-                    categories=categories, attributes=attributes,
-                    id_prefix=id_prefix, user=user)
+                    categories=category_filter,
+                    attributes=attribute_filter,
+                    user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -131,10 +146,10 @@ class HandlerBase(object):
             print e
             raise HttpRequestError(hrc.SERVER_ERROR())
 
-    def _save_entities(self, entities, id_prefix=None, user=None):
+    def _save_entities(self, entities, user=None):
         """Save Entity objects to backend."""
         try:
-            return self.server.backend.save_entities(entities, id_prefix=id_prefix, user=user)
+            return self.server.backend.save_entities(entities, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -319,7 +334,7 @@ class EntityHandler(HandlerBase):
             return hrc.BAD_REQUEST(e)
 
         # Set Entity ID as specified in request
-        entity.id = self.translator.to_native(entity_id)
+        entity.occi_set_attributes(('occi.core.id', entity_id), validate=False)
 
         # Replace entity object in backend
         try:
@@ -343,41 +358,24 @@ class CollectionHandler(HandlerBase):
     """HTTP handler for collections."""
 
     def get(self, request, path):
-        """Get the collection of resource instances under the specified path."""
+        """Get the resource instances in the specified `Kind` collection"""
+
+        # Lookup location path
+        categories = self.server.registry.lookup_recursive(path or '')
+
         # Parse request
         try:
             parser, renderer = self._request_init(request)
         except HttpRequestError as e:
             return e.response
 
-        # Filtering parameters
-        categories = []
-        attributes = []
-        id_prefix = None
-
-        # Can path be mapped to a Kind/Mixin location?
-        t = self.server.registry.lookup_location(path)
-        if t:
-            categories.append(t)
-        else:
-            id_prefix = path.lstrip('/')
-
-        # Category and attribute filters
-        if parser.objects:
-            dao = parser.objects[0]
-            dao.translator = self.translator
-            for category in dao.categories:
-                try:
-                    categories.append(self.server.registry.lookup_id(category))
-                except Category.DoesNotExist as e:
-                    return hrc.BAD_REQUEST(e)
-            # FIXME - what about converting value to indicated type?
-            attributes = dao.attributes
-
         # Retrieve resource instances from backend
+        entities = []
         try:
-            entities = self._filter_entities(categories=categories, attributes=attributes,
-                    id_prefix=id_prefix, user=request.user)
+            for category in categories:
+                if isinstance(category, Kind):
+                    entities.extend(self._filter_entities(categories=[category],
+                            dao_filter=parser.objects, user=request.user))
         except HttpRequestError as e:
             return e.response
 
@@ -392,12 +390,17 @@ class CollectionHandler(HandlerBase):
         return HttpResponse(renderer.headers, renderer.body)
 
     def post(self, request, path):
-        """Create new resource instance(s) OR execute an action on the specified
-        collection.
+        """Create or update resource instance(s) OR execute an action on the
+        specified collection.
         """
+        # Lookup location path
+        location_category = self.server.registry.lookup_location(path)
+
         # Action request?
         if request.query_args:
-            return self._collection_action(request, path)
+            if not location_category:
+                return hrc.BAD_REQUEST('%s: not a Kind nor Mixin location' % path)
+            return self._collection_action(request, location_category)
 
         # Parse request
         try:
@@ -413,59 +416,99 @@ class CollectionHandler(HandlerBase):
         entities = []
         try:
             for dao in parser.objects:
+                # Add location category to entity dao
+                if location_category:
+                    dao.categories.append(location_category)
                 dao.translator = self.translator
-                entities.append(dao.save_to_entity(
-                    category_registry=self.server.registry))
+
+                # Entity ID specified in request?
+                entity_id = None
+                if dao.attributes:
+                    for attr, value in dao.attributes:
+                        if attr == 'occi.core.id':
+                            entity_id = value
+                elif dao.location:
+                    entity = self.translator.to_native(dao.location)
+                    if entity: entity_id = entity.id
+
+                # Attempt to load existing Entity
+                if entity_id:
+                    entity = self._get_entity(entity_id, user=request.user)
+                else:
+                    entity = None
+
+                # Create/update entity object
+                entity = dao.save_to_entity(entity=entity, save_links=True,
+                        category_registry=self.server.registry)
+                entities.append(entity)
+
+                # Add Link objects to list of modified entities
+                if hasattr(entity, 'links'):
+                    for link in entity.links:
+                        entities.append(link)
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
-        except Entity.EntityError as e:
-            return hrc.BAD_REQUEST(e)
-
-        # Save all entities using a single backend operation
-        try:
-            id_list = self._save_entities(entities, id_prefix=path, user=request.user)
         except HttpRequestError as e:
             return e.response
 
-        # Response is a list of locations
+        # Save all entities using a single backend operation
+        try:
+            entities = self._save_entities(entities, user=request.user)
+        except HttpRequestError as e:
+            return e.response
+
+        # Response is a list of created/updated entities
         dao_list = []
-        for entity_id in id_list:
-            dao_list.append(DataObject(
-                location=self.translator.from_native(entity_id)))
+        for entity in entities:
+            dao = DataObject(translator=self.translator)
+            dao.load_from_entity(entity)
+            dao_list.append(dao)
 
         # Render response
         renderer.render(dao_list)
 
         # Set Location header to the first ID
-        renderer.headers.append(('Location', self.translator.from_native(id_list[0])))
+        renderer.headers.append(('Location', dao_list[0].location))
 
         return HttpResponse(renderer.headers, renderer.body)
 
-    def _collection_action(self, request, path):
+    def _collection_action(self, request, category):
         return hrc.NOT_IMPLEMENTED()
 
-    def _update_mixin_collection(self, request, path, add=True):
+    def put(self, request, path):
+        """Replace all resource instances in a collection"""
+        return hrc.NOT_IMPLEMENTED()
+
+    def delete(self, request, path):
+        """Remove resource instance(s) from collection. Only allowed for Mixin
+        collections.
+        """
+        # Lookup location path
+        location_category = self.server.registry.lookup_location(path)
+
+        if isinstance(location_category, Mixin):
+            try:
+                self._update_mixin_collection(request, location_category, add=False)
+            except HttpRequestError as e:
+                return e.response
+            return hrc.ALL_OK()
+        return hrc.NOT_IMPLEMENTED()
+
+    def _update_mixin_collection(self, request, mixin_category, add=True):
         # Parse request
         parser, renderer = self._request_init(request)
-
-        # Lookup Mixin at the specified path
-        mixin = self.server.registry.lookup_location(path)
-        if not mixin:
-            raise HttpRequestError(hrc.NOT_FOUND('%s: no such collection' % path))
-        if not isinstance(mixin, Mixin):
-            raise HttpRequestError(hrc.BAD_REQUEST('%s: not a mixin location' % path))
 
         # Get entities corresponding to the given locations
         entities = []
         for dao in parser.objects:
             if not dao.location:
                 return hrc.BAD_REQUEST('resource instance location expected')
-            entity_id = self.translator.to_native(dao.location)
-            entity = self._get_entity(entity_id, user=request.user)
+            entity = self.translator.to_native(dao.location)
+            entity = self._get_entity(entity.id, user=request.user)
             if add:
-                entity.occi_add_mixin(mixin)
+                entity.occi_add_mixin(mixin_category)
             else:
-                entity.occi_remove_mixin(mixin)
+                entity.occi_remove_mixin(mixin_category)
             entities.append(entity)
 
         # Save all updated entities using a single backend operation
@@ -473,22 +516,6 @@ class CollectionHandler(HandlerBase):
             self._save_entities(entities, user=request.user)
         except HttpRequestError as e:
             return e.response
-
-    def put(self, request, path):
-        """Add resource instance(s) to Mixin collection"""
-        try:
-            self._update_mixin_collection(request, path, add=True)
-        except HttpRequestError as e:
-            return e.response
-        return hrc.ALL_OK()
-
-    def delete(self, request, path):
-        """Remove resource instance(s) from Mixin collection"""
-        try:
-            self._update_mixin_collection(request, path, add=False)
-        except HttpRequestError as e:
-            return e.response
-        return hrc.ALL_OK()
 
 class DiscoveryHandler(HandlerBase):
     """HTTP handler for the OCCI discovery interface."""
@@ -509,11 +536,11 @@ class DiscoveryHandler(HandlerBase):
         renderer.render(dao)
         return HttpResponse(renderer.headers, renderer.body)
 
-    def post(self, request):
-        """Http POST not valid for the discovery interface."""
+    def put(self, request):
+        """Http PUT not valid for the discovery interface."""
         return hrc.BAD_REQUEST()
 
-    def put(self, request):
+    def post(self, request):
         """Create user-defined Mixin instance(s)"""
         # Parse request and extract Mixin defs
         try:

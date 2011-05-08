@@ -66,7 +66,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_set_applicable_action(ComputeStopActionCategory)
         entities.append(e)
         #
-        self.compute_id = server.backend.save_entities(entities)
+        self.computes = server.backend.save_entities(entities)
 
         # Pre-populate backend: Network Resources
         entities = []
@@ -85,7 +85,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
-        self.network_id = server.backend.save_entities(entities)
+        self.networks = server.backend.save_entities(entities)
 
         # Pre-populate backend: Storage Resources
         entities = []
@@ -93,7 +93,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs = [('occi.core.title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
         entities.append(e)
         #
-        self.storage_id = server.backend.save_entities(entities)
+        self.storages = server.backend.save_entities(entities)
 
         # Pre-populate backend: Links
         entities = []
@@ -105,8 +105,8 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs.append(('occi.networkinterface.mac', '00:11:22:33:44:55'))
         attrs.append(('occi.networkinterface.ip', '11.12.13.14'))
         attrs.append(('occi.networkinterface.allocation', 'static'))
-        attrs.append(('occi.core.source', self.compute_id[0]))
-        attrs.append(('occi.core.target', self.network_id[0]))
+        attrs.append(('occi.core.source', self.computes[0].id))
+        attrs.append(('occi.core.target', self.networks[0].id))
         e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
@@ -114,17 +114,22 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_set_translator(self.translator)
         attrs = [('occi.core.title', 'Boot drive'), ('occi.storagelink.state', 'active')]
         attrs.append(('occi.storagelink.deviceid', 'ide:0:0'))
-        attrs.append(('occi.core.source', self.compute_id[0]))
-        attrs.append(('occi.core.target', self.storage_id[0]))
+        attrs.append(('occi.core.source', self.computes[0].id))
+        attrs.append(('occi.core.target', self.storages[0].id))
         e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
-        self.link_id = server.backend.save_entities(entities)
+        self.links = server.backend.save_entities(entities)
 
-        self.entity_ids = self.compute_id + self.network_id + self.storage_id + self.link_id
+        self.entities = self.computes + self.networks + self.storages + self.links
 
-    def _loc(self, entity_id):
-        return self.BASE_URL + '/' + entity_id
+    def _loc(self, entity):
+        kind = entity.occi_get_kind()
+        url = self.BASE_URL + '/'
+        if hasattr(kind, 'location') and kind.location:
+            url += kind.location
+        url += str(entity.id)
+        return url
 
     def _verify_headers(self, response_headers=[], expected_headers=[]):
         i = 0
@@ -174,7 +179,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.handler = EntityHandler(self.server, translator=self.translator)
 
     def _get(self, entity_id=None, accept_header=None):
-        entity_id = entity_id or self.compute_id[0]
+        entity_id = entity_id or self.computes[0].id
         request_headers = []
         if accept_header:
             request_headers.append(('accept', accept_header))
@@ -200,7 +205,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_get__text_urilist(self):
         response = self._get(accept_header='text/plain;q=0.9, text/uri-list')
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
-        self.assertEqual(response.body[:44+len(self.BASE_URL)+1], self._loc(self.compute_id[0]))
+        self.assertEqual(response.body[:44+len(self.BASE_URL)+1], self._loc(self.computes[0]))
 
     def test_get__text_any(self):
         response = self._get(accept_header='text/*, */*;q=0.1')
@@ -208,24 +213,24 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; occi.core.title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
-            self._loc(self.network_id[0]), self._loc(self.link_id[0])))
+            self._loc(self.networks[0]), self._loc(self.links[0])))
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
-            self._loc(self.storage_id[0]), self._loc(self.link_id[1])))
-        expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.compute_id[0]))
+            self._loc(self.storages[0]), self._loc(self.links[1])))
+        expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.computes[0]))
         expected_body.append('X-OCCI-Attribute: occi.core.title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=1.67')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
         self._verify_body(response.body, expected_body)
 
     def test_get_link(self):
-        response = self._get(entity_id=self.link_id[1],
+        response = self._get(entity_id=self.links[1].id,
                 accept_header='text/plain')
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(StorageLinkKind))
         expected_body.append('X-OCCI-Attribute: occi.core.title="Boot drive"')
-        expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % self._loc(self.compute_id[0]))
-        expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % self._loc(self.storage_id[0]))
+        expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % self._loc(self.computes[0]))
+        expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % self._loc(self.storages[0]))
         expected_body.append('X-OCCI-Attribute: occi.storagelink.deviceid="ide:0:0"')
         expected_body.append('X-OCCI-Attribute: occi.storagelink.state="active"')
         self._verify_body(response.body, expected_body)
@@ -235,7 +240,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'stop; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request_headers.append(('x-occi-attribute', 'method="acpioff"'))
         request = HttpRequest(request_headers, '', query_args={'action': ['stop']})
-        response = self.handler.post(request, self.compute_id[1])
+        response = self.handler.post(request, self.computes[1].id)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
 
@@ -248,12 +253,12 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers = []
         request_headers.append(('Category', 'start; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request = HttpRequest(request_headers, '', query_args={'action': ['start']})
-        response = self.handler.post(request, self.compute_id[1])
+        response = self.handler.post(request, self.computes[1].id)
         self.assertEqual(response.status, 400)
         self.assertEqual(response.body, 'start: action not applicable')
 
     def test_post_update(self):
-        entity_id = self.compute_id[1]
+        entity_id = self.computes[1].id
         request_headers = [('accept', 'text/*;q=0.8, text/uri-list')]
         request_body = ''
         request_body += 'x-occi-attribute: occi.compute.cores=3\n'
@@ -270,7 +275,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.compute_id[1]))
+        expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.computes[1]))
         expected_body.append('X-OCCI-Attribute: occi.core.title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
@@ -321,7 +326,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self._verify_body(get_response.body, expected_body)
 
     def test_delete(self):
-        entity_id = self.compute_id[0]
+        entity_id = self.computes[0].id
         request = HttpRequest([], '')
         response = self.handler.delete(request, entity_id)
         self.assertEqual(response.status, 200)
@@ -361,7 +366,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_get_all_default(self):
         response = self._get()
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
 
     def test_get_all_text_occi(self):
         response = self._get(headers=[('accept', 'text/occi')])
@@ -369,8 +374,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
 
         expected_headers = []
-        for entity_id in self.entity_ids:
-            expected_headers.append(('X-OCCI-Location', self._loc(entity_id)))
+        for entity in self.entities:
+            expected_headers.append(('X-OCCI-Location', self._loc(entity)))
         self._verify_headers(response.headers[1:], expected_headers)
 
     def test_get_all_text_any(self):
@@ -379,8 +384,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
 
         expected_body = []
-        for entity_id in self.entity_ids:
-            expected_body.append(self._loc(entity_id))
+        for entity in self.entities:
+            expected_body.append(self._loc(entity))
         self._verify_body(response.body, expected_body)
 
     def test_get_all_text_plain(self):
@@ -389,15 +394,15 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
 
         expected_body = []
-        for entity_id in self.entity_ids:
-            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
+        for entity in self.entities:
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_location(self):
         response = self._get(path=ComputeKind.location, headers=[('accept', 'text/plain')])
         expected_body = []
-        for entity_id in self.compute_id:
-            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
+        for entity in self.computes:
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_category(self):
@@ -405,8 +410,8 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         response = self._get(headers=request_headers)
         expected_body = []
-        for entity_id in self.compute_id:
-            expected_body.append('X-OCCI-Location: %s' % self._loc(entity_id))
+        for entity in self.computes:
+            expected_body.append('X-OCCI-Location: %s' % self._loc(entity))
         self._verify_body(response.body, expected_body)
 
     def test_get_filter_compute_attr(self):
@@ -416,7 +421,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         response = self._get(headers=request_headers)
 
         expected_body = []
-        expected_body.append('X-OCCI-Location: %s' % self._loc(self.compute_id[1]))
+        expected_body.append('X-OCCI-Location: %s' % self._loc(self.computes[1]))
         self._verify_body(response.body, expected_body)
 
     def test_post_resource(self):
@@ -444,7 +449,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_link(self):
         source = self.test_post_resource()
-        target = self._loc(self.storage_id[0])
+        target = self._loc(self.storages[0])
 
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
@@ -475,27 +480,31 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.status, 400)
 
     def test_post_action_compute(self):
-        self.test_post_action(path=self.translator.from_native(ComputeKind.location))
+        path = self.BASE_URL + '/' + ComputeKind.location
+        self.test_post_action(path=path)
 
-    def test_put(self, path=None):
+    def test_post_mixin(self, path=None):
         path = path or IPNetworkMixin.location
-        request_body = '%s\r\n' % self.network_id[1]
-        response = self._put(body=request_body,
+        entity = self.networks[1]
+        request_body = '%s\r\n' % entity.id
+        response = self._post(body=request_body,
                 content_type='text/uri-list', path=path)
-        self.assertEqual(response.body, 'OK')
+        expected_body = []
+        expected_body.append('X-OCCI-Location: %s' % self._loc(entity))
+        self._verify_body(response.body, expected_body)
         self.assertEqual(response.status, 200)
-        entity = self.server.backend.get_entity(self.network_id[1])
+        entity = self.server.backend.get_entity(self.networks[1].id)
         self.assertEqual(str(entity.occi_list_categories()[-1]),
                 str(IPNetworkMixin))
 
     def test_delete(self, path=None):
         path = path or IPNetworkMixin.location
-        request_body = '%s\r\n' % self.network_id[0]
+        request_body = '%s\r\n' % self.networks[0].id
         response = self._delete(body=request_body,
                 content_type='text/uri-list', path=path)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
-        entity = self.server.backend.get_entity(self.network_id[0])
+        entity = self.server.backend.get_entity(self.networks[0].id)
         self.assertEqual(len(entity.occi_list_categories()), 1)
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
@@ -518,13 +527,14 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.source{required} occi.core.target{required}"'))
         self._verify_headers(response.headers[1:4], expected_headers)
 
-    def test_put(self):
+    def test_post(self):
         location='my_stuff/'
+        path = self.BASE_URL + '/' + location
         headers = [('Content-Type', 'text/occi')]
-        headers.append(('Category', 'my_stuff; scheme="http://example.com/occi/custom#"; class=mixin; location=%s' % self._loc(location)))
+        headers.append(('Category', 'my_stuff; scheme="http://example.com/occi/custom#"; class=mixin; location=%s' % path))
         headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"; class=mixin; location=taggy/'))
         request = HttpRequest(headers, '')
-        response = self.handler.put(request)
+        response = self.handler.post(request)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
         self.assertEqual(self.server.registry.lookup_location(location),
@@ -533,7 +543,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
                 'http://example.com/occi/custom#taggy')
 
     def test_delete(self):
-        self.test_put()
+        self.test_post()
         headers = [('Content-Type', 'text/occi')]
         headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"'))
         request = HttpRequest(headers, '')
