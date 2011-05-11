@@ -237,7 +237,7 @@ class HeaderParser(Parser):
                 kwargs['actions'] = actions
                 location = param.get('location')
                 if location:
-                    kwargs['location'] = self.translator.to_native(location)
+                    kwargs['location'] = self.translator.url_strip(location)
 
             # Append instance to categories list
             try:

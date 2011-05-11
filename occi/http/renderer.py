@@ -161,7 +161,7 @@ class HeaderRenderer(Renderer):
                     params.append(('attributes', ' '.join(attr_defs)))
                 if hasattr(category, 'location') and category.location:
                     params.append(('location',
-                        obj.translator.from_native(category.location, path_only=True)))
+                        obj.translator.url_build(category.location, path_only=True)))
 
             category_headers.add(category.term, params)
         [self.headers.append(('Category', h)) for h in category_headers.headers()]
