@@ -481,7 +481,10 @@ class CollectionHandler(HandlerBase):
             dao_list.append(dao)
 
         # Render response
-        renderer.render(dao_list)
+        if len(dao_list) == 1:
+            renderer.render(dao_list[0])
+        else:
+            renderer.render(dao_list)
 
         # Set Location header to the first ID
         renderer.headers.append(('Location', dao_list[0].location))

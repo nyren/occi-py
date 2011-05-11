@@ -432,7 +432,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_resource(self):
         request_headers = [('accept', 'text/plain')]
-        #request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
+        request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.compute.speed=2.66'))
         request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
         response = self._post(path='/compute/', headers=request_headers, content_type='text/occi')
@@ -446,9 +446,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
             if header.lower() == 'location':
                 location = value
         self.assertNotEqual(location, None)
+        base, entity_id = location.rsplit('/', 1)
+        entity_id = uuid.UUID(entity_id)
 
         expected_body = []
-        expected_body.append('X-OCCI-Location: %s' % location)
+        expected_body.append(self._category_header(ComputeKind))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.compute.speed=2.66')
+        expected_body.append('X-OCCI-Attribute: occi.compute.memory=4.00')
         self._verify_body(response.body, expected_body)
 
         return location
@@ -472,9 +477,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
             if header.lower() == 'location':
                 location = value
         self.assertNotEqual(location, None)
+        base, entity_id = location.rsplit('/', 1)
+        entity_id = uuid.UUID(entity_id)
 
         expected_body = []
-        expected_body.append('X-OCCI-Location: %s' % location)
+        expected_body.append(self._category_header(LinkKind))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % source)
+        expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % target)
         self._verify_body(response.body, expected_body)
 
     def test_post_action(self, path=''):
@@ -492,11 +502,12 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_post_mixin(self, path=None):
         path = path or IPNetworkMixin.location
         entity = self.networks[1]
+        request_headers = [('Accept', 'text/uri-list')]
         request_body = '%s\r\n' % entity.id
-        response = self._post(body=request_body,
+        response = self._post(headers=request_headers, body=request_body,
                 content_type='text/uri-list', path=path)
         expected_body = []
-        expected_body.append('X-OCCI-Location: %s' % self._loc(entity))
+        expected_body.append(self._loc(entity))
         self._verify_body(response.body, expected_body)
         self.assertEqual(response.status, 200)
         entity = self.server.backend.get_entity(self.networks[1].id)

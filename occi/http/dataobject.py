@@ -219,7 +219,7 @@ class DataObject(object):
             if category_registry:
                 category = category_registry.lookup_id(str(category))
             if isinstance(category, Kind):
-                if kind is not None:
+                if kind is not None and str(kind) != str(category):
                     raise self.Invalid('%s: Only one Kind allowed to define a resource' % category)
                 kind = category
             elif isinstance(category, Mixin):
