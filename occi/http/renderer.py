@@ -53,7 +53,7 @@ def get_renderer(accept_types=None):
     >>> isinstance(p, TextRenderer)
     True
     >>> p = get_renderer(['text/html', '*/*'])
-    >>> isinstance(p, TextRenderer)
+    >>> isinstance(p, TextPlainRenderer)
     True
     >>> p = get_renderer(['text/html', 'image/jpeg', 'image/png'])
     Traceback (most recent call last):
@@ -294,7 +294,7 @@ register_renderer('text/occi', HeaderRenderer)
 register_renderer('text/plain', TextPlainRenderer)
 register_renderer('text/uri-list', TextURIListRenderer)
 register_renderer('text/*', TextRenderer)
-register_renderer('*/*', TextRenderer)
+register_renderer('*/*', TextPlainRenderer)
 
 
 if __name__ == "__main__":
