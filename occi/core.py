@@ -382,7 +382,7 @@ class Action(object):
         return params
     parameters = property(_get_occi_parameters)
 
-class ReferenceTranslator(object):
+class EntityTranslator(object):
     """Translate Entity between native (internal) and external representation.
 
     Extend this class to implement another translation mechanism. Simply
@@ -444,7 +444,7 @@ class Entity(object):
         self._occi_attributes = {}
         self._occi_actions_available = {}
         self._occi_actions_applicable = {}
-        self._occi_translator = ReferenceTranslator()
+        self._occi_translator = EntityTranslator()
 
         # Set the Kind of this resource instance
         if not kind or not isinstance(kind, Kind) or not kind.is_related(EntityKind):
@@ -498,9 +498,17 @@ class Entity(object):
     def occi_set_translator(self, translator):
         self._occi_translator = translator
 
-    def occi_get_attribute(self, name):
+    def occi_get_attribute(self, name, convert=False):
         """Get single OCCI attribute (native) value."""
-        return self._occi_attributes.get(name)
+        value = self._occi_attributes.get(name)
+        if convert:
+            for category in self.occi_list_categories():
+                for attribute in category.attributes:
+                    if attribute.name == name:
+                        value = attribute.from_native(value,
+                                translator=self._occi_translator)
+                        break
+        return value
 
     def occi_set_attribute(self, name, value):
         """Set single OCCI attribute (native) value."""
