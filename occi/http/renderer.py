@@ -159,6 +159,8 @@ class HeaderRenderer(Renderer):
                             attr_def += '{%s}' % ' '.join(attr_props)
                         attr_defs.append(attr_def)
                     params.append(('attributes', ' '.join(attr_defs)))
+                if hasattr(category, 'actions') and category.actions:
+                    params.append(('actions', ' '.join([str(cat) for cat in category.actions])))
                 if hasattr(category, 'location') and category.location:
                     params.append(('location',
                         obj.translator.url_build(category.location, path_only=True)))

@@ -531,7 +531,11 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="occi.core.id{immutable} occi.core.title"'))
         expected_headers.append(('Category', 'resource; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Resource type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.summary"'))
         expected_headers.append(('Category', 'link; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Link type"; rel="http://schemas.ogf.org/occi/core#entity"; attributes="occi.core.source{required} occi.core.target{required}"'))
-        self._verify_headers(response.headers[1:4], expected_headers)
+        expected_headers.append(('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"; rel="http://schemas.ogf.org/occi/core#resource"; attributes="%s"; actions="%s"; location="/api/compute/"' % (
+            'occi.compute.architecture occi.compute.cores occi.compute.hostname occi.compute.speed occi.compute.memory occi.compute.state{immutable}',
+            ' '.join([str(cat) for cat in ComputeKind.actions]))))
+
+        self._verify_headers(response.headers[1:5], expected_headers)
 
     def test_post(self):
         location='my_stuff/'
