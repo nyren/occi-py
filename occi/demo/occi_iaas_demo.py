@@ -37,18 +37,18 @@ class Compute(occi.core.Resource):
                 ('occi.compute.memory', 1.0),
                 ('occi.compute.state', 'inactive'),
         ]
-        self.occi_set_attributes(attr_default, validate=False)
+        self.occi_import_attributes(attr_default, validate=False)
 
         self.occi_set_applicable_action(ComputeStartActionCategory)
 
     def exec_action(self, action, payload=None):
         state = self.occi_get_attribute('occi.compute.state')
         if state == 'inactive' and action.category.term == 'start':
-            self.occi_set_attributes([('occi.compute.state', 'active')], validate=False)
+            self.occi_import_attributes([('occi.compute.state', 'active')], validate=False)
             self.occi_set_applicable_action(ComputeStartActionCategory, applicable=False)
             self.occi_set_applicable_action(ComputeStopActionCategory, applicable=True)
         elif state == 'active' and action.category.term == 'stop':
-            self.occi_set_attributes([('occi.compute.state', 'inactive')], validate=False)
+            self.occi_import_attributes([('occi.compute.state', 'inactive')], validate=False)
             self.occi_set_applicable_action(ComputeStopActionCategory, applicable=False)
             self.occi_set_applicable_action(ComputeStartActionCategory, applicable=True)
         return None
