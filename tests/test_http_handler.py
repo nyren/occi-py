@@ -184,18 +184,19 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         if accept_header:
             request_headers.append(('accept', accept_header))
         request = HttpRequest(request_headers, '')
-        response = self.handler.get(request, entity_id)
+        response = self.handler.get(request, str(entity_id))
         return response
 
     def test_get(self):
         response = self._get()
+        self.assertEqual(response.status, 200)
         self.assertEqual(response.headers[0], ('Content-Type', 'text/plain'))
 
     def test_get__text_occi(self):
         response = self._get(accept_header='text/*, text/occi')
         self.assertEqual(response.body, '')
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
-        self.assertEqual(len(response.headers), 8)
+        self.assertEqual(len(response.headers), 9)
 
     def test_get__text_plain(self):
         response = self._get(accept_header='text/occi;q=0.5, text/plain;q=0.8')
@@ -217,6 +218,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
             self._loc(self.storages[0]), self._loc(self.links[1])))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.computes[0]))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[0].id.urn)
         expected_body.append('X-OCCI-Attribute: occi.core.title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=1.67')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
@@ -228,6 +230,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(StorageLinkKind))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.links[1].id.urn)
         expected_body.append('X-OCCI-Attribute: occi.core.title="Boot drive"')
         expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % self._loc(self.computes[0]))
         expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % self._loc(self.storages[0]))
@@ -258,24 +261,25 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.body, 'start: action not applicable')
 
     def test_post_update(self):
-        entity_id = self.computes[1].id
+        entity = self.computes[1]
         request_headers = [('accept', 'text/*;q=0.8, text/uri-list')]
         request_body = ''
         request_body += 'x-occi-attribute: occi.compute.cores=3\n'
         request_body += 'x-occi-attribute: occi.compute.speed=3.26, occi.compute.memory=2.0\n'
         request = HttpRequest(request_headers, request_body, content_type='text/plain')
-        response = self.handler.post(request, entity_id)
-        self.assertEqual(response.body, self._loc(entity_id) + '\r\n')
+        response = self.handler.post(request, entity.id)
+        self.assertEqual(response.body, self._loc(entity) + '\r\n')
         self.assertEqual(response.status, 200)
         expected_headers = []
         expected_headers.append(('Content-Type', 'text/uri-list'))
-        expected_headers.append(('Location', self._loc(entity_id)))
+        expected_headers.append(('Location', self._loc(entity)))
         self._verify_headers(response.headers, expected_headers)
 
-        get_response = self._get(entity_id=entity_id, accept_header='text/plain')
+        get_response = self._get(entity_id=entity.id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.computes[1]))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[1].id.urn)
         expected_body.append('X-OCCI-Attribute: occi.core.title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
@@ -289,7 +293,8 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.status, 404)
 
     def test_put_new(self):
-        entity_id = 'network/%s' % uuid.uuid4()
+        entity_id = uuid.uuid4()
+        path = 'network/%s' % entity_id
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'network; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('Category', 'ipnetwork; scheme=http://schemas.ogf.org/occi/infrastructure/network#'))
@@ -298,7 +303,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('x-occi-attribute', 'occi.network.address=192.168.1.100'))
         request_headers.append(('x-occi-attribute', 'occi.network.gateway=192.168.1.1'))
         request = HttpRequest(request_headers, '', content_type='text/occi')
-        response = self.handler.put(request, self._loc(entity_id))
+        response = self.handler.put(request, self.BASE_URL + '/' + path)
 
         # Assume success
         self.assertEqual(response.body, 'OK')
@@ -322,6 +327,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(NetworkKind))
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
         expected_body.append('X-OCCI-Attribute: occi.network.vlan=123')
         self._verify_body(get_response.body, expected_body)
 

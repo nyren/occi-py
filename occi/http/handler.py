@@ -186,13 +186,29 @@ class HandlerBase(object):
 class EntityHandler(HandlerBase):
     """HTTP handler for existing Entity instances."""
 
-    def get(self, request, entity_id):
+    def get(self, request, path):
         """Retrieve a resource instance."""
+
+        try:
+            location, entity_id = path.rsplit('/', 1)
+        except ValueError:
+            location = None
+            entity_id = path
+
+        if location:
+            location_category = self.server.registry.lookup_location(location)
+        else:
+            location_category = None
+
         try:
             parser, renderer = self._request_init(request)
             entity = self._get_entity(entity_id, user=request.user)
         except HttpRequestError as e:
             return e.response
+
+        if (location_category and location_category != entity.occi_get_kind()
+                and location_category in entity.occi_get_mixins()):
+            return hrc.NOT_FOUND()
 
         dao = DataObject(translator=self.translator)
         dao.load_from_entity(entity)
@@ -334,7 +350,7 @@ class EntityHandler(HandlerBase):
             return hrc.BAD_REQUEST(e)
 
         # Set Entity ID as specified in request
-        entity.occi_set_attributes(('occi.core.id', entity_id), validate=False)
+        entity.occi_import_attributes([('occi.core.id', entity_id)], validate=False)
 
         # Replace entity object in backend
         try:
@@ -571,7 +587,7 @@ class DiscoveryHandler(HandlerBase):
                     return hrc.BAD_REQUEST('%s: Category already exist' % category)
 
                 # Mixin location must not be used
-                location = self.translator.to_native(category.location) 
+                location = self.translator.url_strip(category.location)
                 if self.server.registry.lookup_location(location):
                     return hrc.BAD_REQUEST('%s: conflicting location path' % location)
 
