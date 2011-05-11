@@ -155,6 +155,7 @@ class DummyBackend(ServerBackend):
         self._db = OrderedDict()
 
     def get_entity(self, entity_id, user=None):
+        entity_id = str(entity_id)
         try:
             return self._db[entity_id]
         except KeyError:
@@ -197,6 +198,8 @@ class DummyBackend(ServerBackend):
             if isinstance(entity, Link):
                 source = self.get_entity(entity.occi_get_attribute('occi.core.source').id, user=user)
                 target = self.get_entity(entity.occi_get_attribute('occi.core.target').id, user=user)
+                entity.occi_set_attribute('occi.core.source', source)
+                entity.occi_set_attribute('occi.core.target', target)
                 links = []
                 for l in source.links:
                     if l.id != source.id:
@@ -204,12 +207,13 @@ class DummyBackend(ServerBackend):
                 links.append(entity)
                 source.links = links
 
-            self._db[entity.id] = entity
+            self._db[str(entity.id)] = entity
             saved_entities.append(entity)
         return saved_entities
 
     def delete_entities(self, entity_ids, user=None):
         for entity_id in entity_ids:
+            entity_id = str(entity_id)
             try:
                 entity = self._db[entity_id]
                 if isinstance(entity, Resource):
