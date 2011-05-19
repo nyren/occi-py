@@ -28,6 +28,21 @@ __http_version__ = '1.1'
 # HTTP version string for use in Server/Client headers
 version_string = 'occi-py/%s OCCI/%s' % (occi.__version__, __http_version__)
 
+class HttpRequest(object):
+    def __init__(self, headers, body, content_type=None,
+            user=None, query_args=None):
+        self.headers = headers
+        self.body = body
+        self.content_type = content_type
+        self.user = user
+        self.query_args = query_args or {}
+
+class HttpResponse(object):
+    def __init__(self, headers=None, body=None, status=None):
+        self.status = status or 200
+        self.headers = headers or []
+        self.body = body or ''
+
 class HttpServer(object):
     def __init__(self, occi_server,
             listen_address=None, listen_port=None,
@@ -43,8 +58,8 @@ class HttpServer(object):
         raise NotImplementedError
 
 class HttpClient(object):
-    def __init__(self, occi_client,
-            base_url=None):
-        self.client = occi_client
+    def __init__(self, base_url=None):
         self.base_url = base_url
 
+    def request(self, method, url, request=None, callback=None):
+        raise NotImplementedError

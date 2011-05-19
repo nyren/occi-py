@@ -19,26 +19,11 @@
 
 from occi.core import Category, Kind, Mixin, Entity
 from occi.server import ServerBackend
-from occi.http import get_parser, get_renderer
+from occi.http import get_parser, get_renderer, HttpRequest, HttpResponse
 from occi.http.header import HttpHeaderError
 from occi.http.parser import ParserError
 from occi.http.renderer import RendererError
 from occi.http.dataobject import DataObject
-
-class HttpRequest(object):
-    def __init__(self, headers, body, content_type=None,
-            user=None, query_args=None):
-        self.headers = headers
-        self.body = body
-        self.content_type = content_type
-        self.user = user
-        self.query_args = query_args or {}
-
-class HttpResponse(object):
-    def __init__(self, headers=None, body=None, status=None):
-        self.status = status or 200
-        self.headers = headers or []
-        self.body = body or ''
 
 class HttpRequestError(Exception):
     """Exception wrapper for returning a proper HTTP response if an error
@@ -61,7 +46,7 @@ class HttpResponseCode(object):
         return self.http_response(201, msg)
     def ACCEPTED(self, msg='Accepted'):
         return self.http_response(202, msg)
-    def DELETED(self, msg=''):
+    def NO_CONTENT(self, msg=''):
         return self.http_response(204, msg)
     def BAD_REQUEST(self, msg='Bad request'):
         return self.http_response(400, msg)
