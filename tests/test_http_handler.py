@@ -458,6 +458,14 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         return location
 
+    def test_post_resoure_required_attr(self):
+        # Storage has a required attribute, see what happens
+        response = self._post(path='/storage/')         # Location implies the Kind
+
+        # Bad Request since occi.storage.size is required but not specified
+        self.assertEqual(response.body, '"occi.storage.size": Required attribute')
+        self.assertEqual(response.status, 400)
+
     def test_post_link(self):
         source = self.test_post_resource()
         target = self._loc(self.storages[0])

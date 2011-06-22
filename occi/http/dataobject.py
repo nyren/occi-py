@@ -172,7 +172,10 @@ class DataObject(object):
         entity.occi_set_translator(self.translator)
 
         # Load attributes
-        entity.occi_import_attributes(self.attributes, validate=validate_attr)
+        try:
+            entity.occi_import_attributes(self.attributes, validate=validate_attr)
+        except Entity.EntityError as e:
+            raise self.Invalid(e)
 
         # Load Link relations
         if save_links and self.links:
