@@ -20,7 +20,6 @@
 import re
 
 from occi.core import Category, Kind, Mixin
-from occi.server import OCCIServer
 from occi.http.header import (HttpHeaderError, HttpHeadersBase,
         HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders,
         HttpAttributeHeaders, HttpAcceptHeaders)

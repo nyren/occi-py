@@ -20,7 +20,7 @@
 import uuid
 from utils import unittest
 
-from occi.server import OCCIServer, DummyBackend
+from occi.backend.dummy import DummyBackend
 from occi.http.handler import (HttpRequest, HttpResponse, DiscoveryHandler,
         EntityHandler, CollectionHandler)
 from occi.http.dataobject import URLTranslator
@@ -31,23 +31,23 @@ class HandlerTestCaseBase(unittest.TestCase):
     BASE_URL = '/api'
 
     def setUp(self):
-        # OCCI Server
-        server = OCCIServer(backend=DummyBackend())
-        self.server = server
+        # OCCI Server Backend
+        backend = DummyBackend()
+        self.backend = backend
 
         # URL Translator
         self.translator = URLTranslator(self.BASE_URL)
 
         # Register Resource types
-        server.registry.register(ComputeKind)
-        server.registry.register(NetworkKind)
-        server.registry.register(IPNetworkMixin)
-        server.registry.register(StorageKind)
+        backend.registry.register(ComputeKind)
+        backend.registry.register(NetworkKind)
+        backend.registry.register(IPNetworkMixin)
+        backend.registry.register(StorageKind)
 
         # Register Link types
-        server.registry.register(NetworkInterfaceKind)
-        server.registry.register(IPNetworkInterfaceMixin)
-        server.registry.register(StorageLinkKind)
+        backend.registry.register(NetworkInterfaceKind)
+        backend.registry.register(IPNetworkInterfaceMixin)
+        backend.registry.register(StorageLinkKind)
 
         # Pre-populate backend: Compute Resources
         entities = []
@@ -66,7 +66,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_set_applicable_action(ComputeStopActionCategory)
         entities.append(e)
         #
-        self.computes = server.backend.save_entities(entities)
+        self.computes = backend.save_entities(entities)
 
         # Pre-populate backend: Network Resources
         entities = []
@@ -85,7 +85,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
-        self.networks = server.backend.save_entities(entities)
+        self.networks = backend.save_entities(entities)
 
         # Pre-populate backend: Storage Resources
         entities = []
@@ -93,7 +93,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         attrs = [('occi.core.title', 'SAN'), ('occi.storage.size', 1500.0), ('occi.storage.state', 'active')]
         entities.append(e)
         #
-        self.storages = server.backend.save_entities(entities)
+        self.storages = backend.save_entities(entities)
 
         # Pre-populate backend: Links
         entities = []
@@ -119,7 +119,7 @@ class HandlerTestCaseBase(unittest.TestCase):
         e.occi_import_attributes(attrs, validate=False)
         entities.append(e)
         #
-        self.links = server.backend.save_entities(entities)
+        self.links = backend.save_entities(entities)
 
         self.entities = self.computes + self.networks + self.storages + self.links
 
@@ -176,7 +176,7 @@ class HandlerTestCaseBase(unittest.TestCase):
 class EntityHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(EntityHandlerTestCase, self).setUp()
-        self.handler = EntityHandler(self.server, translator=self.translator)
+        self.handler = EntityHandler(self.backend, translator=self.translator)
 
     def _get(self, entity_id=None, accept_header=None):
         entity_id = entity_id or self.computes[0].id
@@ -351,7 +351,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
 class CollectionHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(CollectionHandlerTestCase, self).setUp()
-        self.handler = CollectionHandler(self.server, translator=self.translator)
+        self.handler = CollectionHandler(self.backend, translator=self.translator)
 
     def _request(self, verb='get', path='', content_type=None,
             headers=[], body='', query_args=None):
@@ -510,7 +510,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         expected_body.append(self._loc(entity))
         self._verify_body(response.body, expected_body)
         self.assertEqual(response.status, 200)
-        entity = self.server.backend.get_entity(self.networks[1].id)
+        entity = self.backend.get_entity(self.networks[1].id)
         self.assertEqual(str(entity.occi_list_categories()[-1]),
                 str(IPNetworkMixin))
 
@@ -521,13 +521,13 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
                 content_type='text/uri-list', path=path)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
-        entity = self.server.backend.get_entity(self.networks[0].id)
+        entity = self.backend.get_entity(self.networks[0].id)
         self.assertEqual(len(entity.occi_list_categories()), 1)
 
 class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def setUp(self):
         super(DiscoveryHandlerTestCase, self).setUp()
-        self.handler = DiscoveryHandler(self.server, translator=self.translator)
+        self.handler = DiscoveryHandler(self.backend, translator=self.translator)
 
     def test_get(self):
         headers = [('Accept', 'text/occi')]
@@ -536,7 +536,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, '')
         self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
-        self.assertEqual(len(response.headers), len(self.server.registry.all()) + 1)
+        self.assertEqual(len(response.headers), len(self.backend.registry.all()) + 1)
 
         expected_headers = []
         expected_headers.append(('Category', 'entity; scheme="http://schemas.ogf.org/occi/core#"; class="kind"; title="Entity type"; attributes="occi.core.id{immutable} occi.core.title"'))
@@ -558,9 +558,9 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         response = self.handler.post(request)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
-        self.assertEqual(self.server.registry.lookup_location(location),
+        self.assertEqual(self.backend.registry.lookup_location(location),
                 'http://example.com/occi/custom#my_stuff')
-        self.assertEqual(self.server.registry.lookup_location('taggy/'),
+        self.assertEqual(self.backend.registry.lookup_location('taggy/'),
                 'http://example.com/occi/custom#taggy')
 
     def test_delete(self):
@@ -571,7 +571,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         response = self.handler.delete(request)
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
-        self.assertEqual(self.server.registry.lookup_location('my_stuff/'),
+        self.assertEqual(self.backend.registry.lookup_location('my_stuff/'),
                 'http://example.com/occi/custom#my_stuff')
-        self.assertEqual(self.server.registry.lookup_location('taggy/'), None)
+        self.assertEqual(self.backend.registry.lookup_location('taggy/'), None)
 

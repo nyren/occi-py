@@ -34,15 +34,15 @@ class TornadoHttpServer(HttpServer):
 
         self.application = tornado.web.Application([
             (self.base_path + r'/*/-/', TornadoRequestHandler,
-                dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
+                dict(handler=DiscoveryHandler(self.backend, translator=self.translator))),
             (self.base_path + r'/.well-known/org/ogf/occi/-/', TornadoRequestHandler,
-                dict(handler=DiscoveryHandler(self.server, translator=self.translator))),
+                dict(handler=DiscoveryHandler(self.backend, translator=self.translator))),
             (self.base_path + r'/', TornadoRequestHandler,
-                dict(handler=CollectionHandler(self.server, translator=self.translator), args=[''])),
+                dict(handler=CollectionHandler(self.backend, translator=self.translator), args=[''])),
             (self.base_path + r'/(.+/)', TornadoRequestHandler,
-                dict(handler=CollectionHandler(self.server, translator=self.translator))),
+                dict(handler=CollectionHandler(self.backend, translator=self.translator))),
             (self.base_path + r'/(.+[^/])', TornadoRequestHandler,
-                dict(handler=EntityHandler(self.server, translator=self.translator))),
+                dict(handler=EntityHandler(self.backend, translator=self.translator))),
             ])
 
     def run(self):
@@ -130,12 +130,12 @@ class TornadoRequestHandler(tornado.web.RequestHandler):
 
 
 if __name__ == '__main__':
-    from occi.server import OCCIServer, DummyBackend
+    from occi.backend.dummy import DummyBackend
     from occi.ext.infrastructure import *
-    server = OCCIServer(backend=DummyBackend())
-    server.registry.register(ComputeKind)
-    server.registry.register(StorageKind)
-    server.registry.register(StorageLinkKind)
+    backend = OCCIServer(backend=DummyBackend())
+    backend.registry.register(ComputeKind)
+    backend.registry.register(StorageKind)
+    backend.registry.register(StorageLinkKind)
 
-    http_server = TornadoHttpServer(server, base_url='http://localhost:8000/api')
+    http_server = TornadoHttpServer(backend, base_url='http://localhost:8000/api')
     http_server.run()

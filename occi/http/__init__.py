@@ -44,10 +44,10 @@ class HttpResponse(object):
         self.body = body or ''
 
 class HttpServer(object):
-    def __init__(self, occi_server,
+    def __init__(self, occi_server_backend,
             listen_address=None, listen_port=None,
             base_url=None):
-        self.server = occi_server
+        self.backend = occi_server_backend
         self.address = listen_address
         self.port = listen_port or 80
         self.translator = URLTranslator(base_url or '')

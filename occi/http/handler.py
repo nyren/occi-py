@@ -18,7 +18,7 @@
 #
 
 from occi.core import Category, Kind, Mixin, Entity
-from occi.server import ServerBackend
+from occi.backend import ServerBackend
 from occi.http import get_parser, get_renderer, HttpRequest, HttpResponse
 from occi.http.header import HttpHeaderError
 from occi.http.parser import ParserError
@@ -69,8 +69,8 @@ hrc = HttpResponseCode()
 class HandlerBase(object):
     """HTTP handler base class."""
 
-    def __init__(self, server, translator=None):
-        self.server = server            # OCCIServer
+    def __init__(self, backend, translator=None):
+        self.backend = backend            # OCCI ServerBackend
         self.translator = translator    # URLTranslator
 
     def _request_init(self, request):
@@ -93,7 +93,7 @@ class HandlerBase(object):
     def _get_entity(self, entity_id, user=None):
         """Load entity object from backend."""
         try:
-            return self.server.backend.get_entity(entity_id, user=user)
+            return self.backend.get_entity(entity_id, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -113,13 +113,13 @@ class HandlerBase(object):
             dao.translator = self.translator
             for category in dao.categories:
                 try:
-                    category_filter.append(self.server.registry.lookup_id(category))
+                    category_filter.append(self.backend.registry.lookup_id(category))
                 except Category.DoesNotExist as e:
                     return hrc.BAD_REQUEST(e)
             # FIXME - what about converting value to indicated type?
             attribute_filter.extend(dao.attributes)
         try:
-            return self.server.backend.filter_entities(
+            return self.backend.filter_entities(
                     categories=category_filter,
                     attributes=attribute_filter,
                     user=user)
@@ -134,7 +134,7 @@ class HandlerBase(object):
     def _save_entities(self, entities, user=None):
         """Save Entity objects to backend."""
         try:
-            return self.server.backend.save_entities(entities, user=user)
+            return self.backend.save_entities(entities, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -146,7 +146,7 @@ class HandlerBase(object):
     def _delete_entities(self, entity_ids, user=None):
         """Delete Entity IDs from backend."""
         try:
-            return self.server.backend.delete_entities(entity_ids, user=user)
+            return self.backend.delete_entities(entity_ids, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -158,7 +158,7 @@ class HandlerBase(object):
     def _exec_action(self, action, entity, payload=None, user=None):
         """Instruct backend to execute Action on the given Entity."""
         try:
-            return self.server.backend.exec_action(action, entity, payload=payload, user=user)
+            return self.backend.exec_action(action, entity, payload=payload, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -181,7 +181,7 @@ class EntityHandler(HandlerBase):
             entity_id = path
 
         if location:
-            location_category = self.server.registry.lookup_location(location)
+            location_category = self.backend.registry.lookup_location(location)
         else:
             location_category = None
 
@@ -235,7 +235,7 @@ class EntityHandler(HandlerBase):
 
         # Create Action instance
         try:
-            action = dao.save_as_action(category_registry=self.server.registry)
+            action = dao.save_as_action(category_registry=self.backend.registry)
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
 
@@ -282,7 +282,7 @@ class EntityHandler(HandlerBase):
         # Update entity object from request data
         try:
             dao.save_to_entity(entity=entity,
-                    category_registry=self.server.registry)
+                    category_registry=self.backend.registry)
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
 
@@ -330,7 +330,7 @@ class EntityHandler(HandlerBase):
         # Populate entity object from request data
         try:
             entity = dao.save_to_entity(save_links=False,
-                    category_registry=self.server.registry)
+                    category_registry=self.backend.registry)
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
 
@@ -362,7 +362,7 @@ class CollectionHandler(HandlerBase):
         """Get the resource instances in the specified `Kind` collection"""
 
         # Lookup location path
-        categories = self.server.registry.lookup_recursive(path or '')
+        categories = self.backend.registry.lookup_recursive(path or '')
 
         # Parse request
         try:
@@ -395,7 +395,7 @@ class CollectionHandler(HandlerBase):
         specified collection.
         """
         # Lookup location path
-        location_category = self.server.registry.lookup_location(path)
+        location_category = self.backend.registry.lookup_location(path)
 
         # Action request?
         if request.query_args:
@@ -440,7 +440,7 @@ class CollectionHandler(HandlerBase):
 
                 # Create/update entity object
                 entity = dao.save_to_entity(entity=entity, save_links=True,
-                        category_registry=self.server.registry)
+                        category_registry=self.backend.registry)
                 entities.append(entity)
 
                 # Add Link objects to list of modified entities
@@ -488,7 +488,7 @@ class CollectionHandler(HandlerBase):
         collections.
         """
         # Lookup location path
-        location_category = self.server.registry.lookup_location(path)
+        location_category = self.backend.registry.lookup_location(path)
 
         if isinstance(location_category, Mixin):
             try:
@@ -533,7 +533,7 @@ class DiscoveryHandler(HandlerBase):
             return e.response
 
         dao = DataObject(translator=self.translator,
-                categories=self.server.registry.all())
+                categories=self.backend.registry.all())
         dao.render_flags['category_discovery'] = True
 
         # Render response
@@ -568,7 +568,7 @@ class DiscoveryHandler(HandlerBase):
 
                 # Mixin must not exist
                 try:
-                    self.server.registry.lookup_id(category)
+                    self.backend.registry.lookup_id(category)
                 except Category.DoesNotExist:
                     pass
                 else:
@@ -576,7 +576,7 @@ class DiscoveryHandler(HandlerBase):
 
                 # Mixin location must not be used
                 location = self.translator.url_strip(category.location)
-                if self.server.registry.lookup_location(location):
+                if self.backend.registry.lookup_location(location):
                     return hrc.BAD_REQUEST('%s: conflicting location path' % location)
 
                 # Create Mixin instance
@@ -590,12 +590,12 @@ class DiscoveryHandler(HandlerBase):
         # Store Mixins in backend and save to Category registry
         try:
             for mixin in mixins:
-                mixin = self.server.backend.add_user_mixin(mixin, user=request.user)
+                mixin = self.backend.add_user_mixin(mixin, user=request.user)
                 try:
                     # FIXME: locking needed to avoid race condition
-                    self.server.registry.register(mixin)
+                    self.backend.registry.register(mixin)
                 except Category.Invalid as e:
-                    self.server.backend.remove_user_mixin(mixin, user=request.user)
+                    self.backend.remove_user_mixin(mixin, user=request.user)
                     return hrc.BAD_REQUEST(e)
         except ServerBackend.InvalidOperation as e:
             return hrc.BAD_REQUEST(e)
@@ -625,7 +625,7 @@ class DiscoveryHandler(HandlerBase):
             for category in parser.objects[0].categories:
                 # Find Mixin in registry
                 try:
-                    mixin = self.server.registry.lookup_id(category)
+                    mixin = self.backend.registry.lookup_id(category)
                 except Category.DoesNotExist:
                     return hrc.BAD_REQUEST('%s: does not exist' % category)
 
@@ -638,9 +638,9 @@ class DiscoveryHandler(HandlerBase):
         # Remove Mixins from backend and Category registry
         try:
             for mixin in mixins:
-                self.server.backend.remove_user_mixin(mixin, user=request.user)
+                self.backend.remove_user_mixin(mixin, user=request.user)
                 try:
-                    self.server.registry.unregister(mixin)
+                    self.backend.registry.unregister(mixin)
                 except Category.Invalid as e:
                     return hrc.BAD_REQUEST(e)
         except ServerBackend.InvalidOperation as e:

@@ -23,7 +23,8 @@ import doctest
 
 DOCTEST_MODULES = [
         'occi.core',
-        'occi.server',
+        'occi.backend',
+        'occi.backend.dummy',
         'occi.http.dataobject',
         'occi.http.handler',
         'occi.http.header',

@@ -24,7 +24,7 @@ import urlparse
 
 import occi.core
 import occi.http
-from occi.server import OCCIServer, DummyBackend
+from occi.backend.dummy import DummyBackend
 from occi.ext.infrastructure import *
 from occi.http.tornado_frontend import TornadoHttpServer
 
@@ -56,15 +56,14 @@ class Compute(occi.core.Resource):
 def init_server(backend):
     ComputeKind.entity_type = Compute
 
-    server = OCCIServer(backend=backend)
-    server.registry.register(ComputeKind)
-    server.registry.register(NetworkKind)
-    server.registry.register(IPNetworkMixin)
-    server.registry.register(StorageKind)
-    server.registry.register(NetworkInterfaceKind)
-    server.registry.register(IPNetworkInterfaceMixin)
-    server.registry.register(StorageLinkKind)
-    return server
+    backend.registry.register(ComputeKind)
+    backend.registry.register(NetworkKind)
+    backend.registry.register(IPNetworkMixin)
+    backend.registry.register(StorageKind)
+    backend.registry.register(NetworkInterfaceKind)
+    backend.registry.register(IPNetworkInterfaceMixin)
+    backend.registry.register(StorageLinkKind)
+    return backend
 
 if __name__ == "__main__":
     parser = optparse.OptionParser( description='OCCI IaaS Demo')
