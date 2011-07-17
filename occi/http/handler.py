@@ -201,9 +201,14 @@ class EntityHandler(HandlerBase):
 
         return HttpResponse(renderer.headers, renderer.body)
 
-    def post(self, request, entity_id):
+    def post(self, request, path):
         """Update specific resource instance or execute an Action on a resource
         instance."""
+        try:
+            location, entity_id = path.rsplit('/', 1)
+        except ValueError:
+            location = None
+            entity_id = path
         if request.query_args:
             return self._post_action(request, entity_id)
         else:
@@ -306,13 +311,19 @@ class EntityHandler(HandlerBase):
 
         return HttpResponse(renderer.headers, renderer.body)
 
-    def put(self, request, entity_id):
+    def put(self, request, path):
         """Replace an existing resource instance or create a new resource
         instance using the specified Entity ID.
 
         Links associated with an existing Resource instance are not affected by
         this operation.
         """
+        try:
+            location, entity_id = path.rsplit('/', 1)
+        except ValueError:
+            location = None
+            entity_id = path
+
         # Parse request
         try:
             parser, renderer = self._request_init(request)
@@ -345,8 +356,13 @@ class EntityHandler(HandlerBase):
 
         return hrc.ALL_OK()
 
-    def delete(self, request, entity_id):
+    def delete(self, request, path):
         """Delete a resource instance."""
+        try:
+            location, entity_id = path.rsplit('/', 1)
+        except ValueError:
+            location = None
+            entity_id = path
         try:
             parser, renderer = self._request_init(request)
             self._delete_entities([entity_id])

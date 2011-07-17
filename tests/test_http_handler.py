@@ -243,7 +243,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'stop; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request_headers.append(('x-occi-attribute', 'method="acpioff"'))
         request = HttpRequest(request_headers, '', query_args={'action': ['stop']})
-        response = self.handler.post(request, self.computes[1].id)
+        response = self.handler.post(request, 'compute/' + str(self.computes[1].id))
         self.assertEqual(response.body, 'OK')
         self.assertEqual(response.status, 200)
 
@@ -256,7 +256,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers = []
         request_headers.append(('Category', 'start; scheme="http://schemas.ogf.org/occi/infrastructure/compute/action#'))
         request = HttpRequest(request_headers, '', query_args={'action': ['start']})
-        response = self.handler.post(request, self.computes[1].id)
+        response = self.handler.post(request, str(self.computes[1].id))
         self.assertEqual(response.status, 400)
         self.assertEqual(response.body, 'start: action not applicable')
 
@@ -267,7 +267,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_body += 'x-occi-attribute: occi.compute.cores=3\n'
         request_body += 'x-occi-attribute: occi.compute.speed=3.26, occi.compute.memory=2.0\n'
         request = HttpRequest(request_headers, request_body, content_type='text/plain')
-        response = self.handler.post(request, entity.id)
+        response = self.handler.post(request, str(entity.id))
         self.assertEqual(response.body, self._loc(entity) + '\r\n')
         self.assertEqual(response.status, 200)
         expected_headers = []
@@ -318,7 +318,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'network; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.network.vlan=123'))
         request = HttpRequest(request_headers, '', content_type='text/occi')
-        response = self.handler.put(request, entity_id)
+        response = self.handler.put(request, str(entity_id))
 
         # Assume success
         self.assertEqual(response.body, 'OK')
@@ -332,7 +332,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self._verify_body(get_response.body, expected_body)
 
     def test_delete(self):
-        entity_id = self.computes[0].id
+        entity_id = 'compute/%s' % self.computes[0].id
         request = HttpRequest([], '')
         response = self.handler.delete(request, entity_id)
         self.assertEqual(response.status, 200)
