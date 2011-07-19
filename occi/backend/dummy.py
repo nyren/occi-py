@@ -56,6 +56,9 @@ class DummyBackend(ServerBackend):
         super(DummyBackend, self).__init__()
         self._db = OrderedDict()
 
+    def auth_user(self, identity, secret=None, method=None, user=None):
+        return None
+
     def get_entity(self, entity_id, user=None):
         entity_id = str(entity_id)
         try:

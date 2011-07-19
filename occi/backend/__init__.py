@@ -31,6 +31,24 @@ class ServerBackend(object):
     class InvalidOperation(ServerBackendError):
         pass
 
+    def auth_user(self, identity, secret=None, method=None, user=None):
+        """Authenticate the user identified by the given user credentials.
+
+        Success:
+          Returns a user object, defined by the backend. This user object is
+          then passed to all backend methods.
+
+        Failure:
+          None is returned.
+
+        :param identity: The user identity.
+        :keyword secret: A user secret, digest, etc.
+        :keyword method: The authentication method used.
+        :keyword user: The authenticated user or None if not authenticated.
+        :return: A valid user object or None.
+        """
+        raise self.ServerBackendError('Server Backend must implement auth_user')
+
     def get_entity(self, entitiy_id, user=None):
         raise self.ServerBackendError('Server Backend must implement get_entity')
 
