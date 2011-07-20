@@ -46,13 +46,13 @@ class JSONRenderer(Renderer):
     >>> r = JSONRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Content-Type', 'application/json'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"')]
+    [('Content-Type', 'application/json; charset=utf-8'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"')]
     >>> response = json.loads(r.body)
     >>> response['categories'][0]['term']
     u'compute'
-    >>> response['links'][0]['target']
+    >>> response['links'][0]['target_url']
     u'http://example.com/storage/345'
-    >>> response['links'][0]['rel'][0] == str(StorageKind)
+    >>> response['links'][0]['target_type'][0] == str(StorageKind)
     True
     >>> response['attributes']['occi.compute.cores']
     3
@@ -63,7 +63,7 @@ class JSONRenderer(Renderer):
     INDENT = 4
 
     def render(self, objects):
-        self.headers.append(('Content-Type', CONTENT_TYPE))
+        self.headers.append(('Content-Type', '%s; charset=utf-8' % CONTENT_TYPE))
         if isinstance(objects, list) or isinstance(objects, tuple):
             json_data = self._render_obj_list(objects)
         else:
@@ -92,10 +92,14 @@ class JSONRenderer(Renderer):
         json_obj = OrderedDict()
         if obj.categories:
             json_obj['categories'] = []
+        if obj.actions:
+            json_obj['actions'] = []
         if obj.links:
             json_obj['links'] = []
         if obj.attributes:
-            json_obj['attributes'] = {}
+            json_obj['attributes'] = OrderedDict()
+        if obj.location:
+            json_obj['location'] = obj.location
 
         # Categories
         for category in obj.categories:
@@ -104,14 +108,14 @@ class JSONRenderer(Renderer):
             d['scheme'] = category.scheme
 
             cat_class = category.__class__.__name__.lower()
-            if cat_class == 'category': cat_class = 'action'
+            #if cat_class == 'category': cat_class = 'action'
             d['class'] = cat_class
 
             d['title'] = category.title
             if category.related:
-                d['rel'] = str(category.related)
+                d['related'] = str(category.related)
             if category.attributes:
-                attr_defs={}
+                attr_defs = OrderedDict()
                 for attr in category.unique_attributes:
                     attr_props = OrderedDict()
                     attr_props['mutable'] = attr.mutable
@@ -129,13 +133,30 @@ class JSONRenderer(Renderer):
         # Links
         for link in obj.links:
             d = OrderedDict()
-            d['target'] = link.target_location
-            d['rel'] = [str(cat) for cat in link.target_categories]
+            d['target_url'] = link.target_location
+            d['target_type'] = [str(cat) for cat in link.target_categories]
             if link.target_title:
                 d['title'] = link.target_title
             if link.link_location:
-                d['self'] = link.link_location
+                d['link_url'] = link.link_location
+            if link.link_categories:
+                d['link_type'] = [str(cat) for cat in link.link_categories]
+            if link.link_attributes:
+                attrs = OrderedDict()
+                for name, value in link.link_attributes:
+                    attrs[name] = value
+                d['attributes'] = attrs
             json_obj['links'].append(d)
+
+        # Actions
+        for action in obj.actions:
+            d = OrderedDict()
+            d['action'] = action.target_location
+            assert(len(action.target_categories) == 1)
+            d['type'] = str(action.target_categories[0])
+            if action.target_title:
+                d['title'] = action.target_title
+            json_obj['actions'].append(d)
 
         # Attributes
         for name, value in obj.attributes:
