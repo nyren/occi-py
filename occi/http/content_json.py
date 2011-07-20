@@ -50,7 +50,7 @@ class JSONRenderer(Renderer):
     >>> response = json.loads(r.body)
     >>> response['categories'][0]['term']
     u'compute'
-    >>> response['links'][0]['target_url']
+    >>> response['links'][0]['target_uri']
     u'http://example.com/storage/345'
     >>> response['links'][0]['target_type'][0] == str(StorageKind)
     True
@@ -133,12 +133,12 @@ class JSONRenderer(Renderer):
         # Links
         for link in obj.links:
             d = OrderedDict()
-            d['target_url'] = link.target_location
-            d['target_type'] = [str(cat) for cat in link.target_categories]
             if link.target_title:
                 d['title'] = link.target_title
+            d['target_uri'] = link.target_location
+            d['target_type'] = [str(cat) for cat in link.target_categories]
             if link.link_location:
-                d['link_url'] = link.link_location
+                d['link_uri'] = link.link_location
             if link.link_categories:
                 d['link_type'] = [str(cat) for cat in link.link_categories]
             if link.link_attributes:
@@ -151,11 +151,11 @@ class JSONRenderer(Renderer):
         # Actions
         for action in obj.actions:
             d = OrderedDict()
-            d['action'] = action.target_location
-            assert(len(action.target_categories) == 1)
-            d['type'] = str(action.target_categories[0])
             if action.target_title:
                 d['title'] = action.target_title
+            d['uri'] = action.target_location
+            assert(len(action.target_categories) == 1)
+            d['type'] = str(action.target_categories[0])
             json_obj['actions'].append(d)
 
         # Attributes
