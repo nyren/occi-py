@@ -27,6 +27,7 @@ import occi.http
 from occi.backend.dummy import DummyBackend
 from occi.ext.infrastructure import *
 from occi.http.tornado_frontend import TornadoHttpServer
+import occi.http.content_json as content_json
 
 class Compute(occi.core.Resource):
     def __init__(self, kind, **kwargs):
@@ -78,6 +79,9 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.INFO)
     elif options.verbose > 1:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # Enable JSON content type
+    content_json.register()
 
     url = urlparse.urlparse(options.base_url)
 

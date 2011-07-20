@@ -24,6 +24,7 @@ except ImportError:
 import uuid
 
 class Attribute(object):
+    type_name = 'string'
     class Invalid(Exception):
         def __init__(self, name, value):
             self.name = name
@@ -47,6 +48,7 @@ class Attribute(object):
         return "%s('%s', required=%s, mutable=%s)" % (self.__class__.__name__, self.name, self.required, self.mutable)
 
 class IntAttribute(Attribute):
+    type_name = 'integer'
     def to_native(self, s, **kwargs):
         try:
             return int(s)
@@ -54,6 +56,7 @@ class IntAttribute(Attribute):
             raise self.Invalid(self.name, s)
 
 class FloatAttribute(Attribute):
+    type_name = 'float'
     def to_native(self, s, **kwargs):
         try:
             return float(s)
@@ -61,6 +64,7 @@ class FloatAttribute(Attribute):
             raise self.Invalid(self.name, s)
 
 class BoolAttribute(Attribute):
+    type_name = 'boolean'
     def to_native(self, s, **kwargs):
         if s == 'true':
             return True
@@ -70,6 +74,7 @@ class BoolAttribute(Attribute):
             raise self.Invalid(self.name, s)
 
 class UUIDAttribute(Attribute):
+    type_name = 'uuid'
     def to_native(self, s, **kwargs):
         s = str(s)
         i = s.rfind('/')

@@ -28,7 +28,7 @@ DOCTEST_MODULES = [
         'occi.http.dataobject',
         'occi.http.handler',
         'occi.http.header',
-        'occi.http.json',
+        'occi.http.content_json',
         'occi.http.parser',
         'occi.http.renderer',
         'occi.http.utils',

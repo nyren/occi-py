@@ -126,9 +126,8 @@ class HeaderRenderer(Renderer):
         else:
             self._render_single_obj(objects)
 
-    def _render_single_obj(self, obj):
-        """Render a single `DataObject`.
-        """
+    @classmethod
+    def category_headers(self, obj):
         # Category headers
         category_headers = HttpCategoryHeaders()
         for category in obj.categories:
@@ -166,6 +165,13 @@ class HeaderRenderer(Renderer):
                         obj.translator.url_build(category.location, path_only=True)))
 
             category_headers.add(category.term, params)
+        return category_headers
+
+    def _render_single_obj(self, obj):
+        """Render a single `DataObject`.
+        """
+        # Category headers
+        category_headers = self.category_headers(obj)
         [self.headers.append(('Category', h)) for h in category_headers.headers()]
 
         # Link headers
