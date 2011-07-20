@@ -176,14 +176,16 @@ class HeaderRenderer(Renderer):
 
         # Link headers
         link_headers = HttpLinkHeaders()
-        for link in obj.links:
+        for link in obj.links + obj.actions:
             params = []
             params.append(('rel',  ' '.join([str(cat) for cat in link.target_categories])))
             params.append(('title',  link.target_title or ''))
             if link.link_location:
                 params.append(('self',  link.link_location))
-                for attr, value in link.link_attributes:
-                    params.append((attr,  value))
+                if link.link_categories and link.link_attributes:
+                    params.append(('category', ' '.join([str(cat) for cat in link.link_categories])))
+                    for attr, value in link.link_attributes:
+                        params.append((attr,  value))
 
             link_headers.add(link.target_location, params)
         [self.headers.append(('Link', h)) for h in link_headers.headers()]

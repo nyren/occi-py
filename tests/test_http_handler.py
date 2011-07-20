@@ -213,10 +213,10 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; occi.core.title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
-            self._loc(self.networks[0]), self._loc(self.links[0])))
-        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
-            self._loc(self.storages[0]), self._loc(self.links[1])))
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; category="%s"; occi.core.title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
+            self._loc(self.networks[0]), self._loc(self.links[0]), "%s %s" % (str(NetworkInterfaceKind), str(IPNetworkInterfaceMixin))))
+        expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; category="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
+            self._loc(self.storages[0]), self._loc(self.links[1]), str(StorageLinkKind)))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.computes[0]))
         expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[0].id.urn)
         expected_body.append('X-OCCI-Attribute: occi.core.title="A \\"little\\" VM"')
