@@ -20,7 +20,7 @@
 import urlparse
 import uuid
 
-from occi.core import Category, Kind, Mixin, Entity, Resource, Link, Action, EntityTranslator, EntityKind
+from occi.core import Attribute, Category, Kind, Mixin, Entity, Resource, Link, Action, EntityTranslator, EntityKind
 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
@@ -177,7 +177,7 @@ class DataObject(object):
         # Load attributes
         try:
             entity.occi_import_attributes(self.attributes, validate=validate_attr)
-        except Entity.EntityError as e:
+        except (Entity.EntityError, Attribute.Invalid) as e:
             raise self.Invalid(e)
 
         # Load Link relations

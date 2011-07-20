@@ -495,6 +495,20 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % target)
         self._verify_body(response.body, expected_body)
 
+    def test_post_link_invalid(self):
+        source = self.test_post_resource()
+        target = self._loc(self.storages[0])
+
+        request_headers = [('accept', 'text/plain')]
+        request_headers.append(('Category', 'link; scheme=http://schemas.ogf.org/occi/core#'))
+        request_headers.append(('x-occi-attribute', 'occi.core.source="$invalid"'))
+        request_headers.append(('x-occi-attribute', 'occi.core.target="%s"' % target))
+        response = self._post(path='/', headers=request_headers)
+
+        # Bad Request since occi.core.source is invalid
+        self.assertEqual(response.body, "occi.core.id='$invalid': invalid attribute value")
+        self.assertEqual(response.status, 400)
+
     def test_post_action(self, path=''):
         request_headers = [('accept', 'text/plain')]
         request_headers.append(('Category', 'start; scheme=http://schemas.ogf.org/occi/infrastructure/compute/action#'))
