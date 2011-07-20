@@ -36,9 +36,10 @@ class DataObject(object):
         pass
 
     def __init__(self, categories=None, attributes=None, links=None,
-            location=None, translator=None):
+            actions=None, location=None, translator=None):
         self.categories = categories or []
         self.links = links or []
+        self.actions = actions or []
         self.attributes = attributes or []
         self.location = location
 
@@ -69,9 +70,11 @@ class DataObject(object):
         >>> d.attributes
         [('occi.core.id', 'urn:uuid:10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 2.3333333333333335)]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
-        [('/api/storage/20000000-0000-4000-0000-000000000000', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk'), ('/api/compute/10000000-0000-4000-0000-000000000000?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
+        [('/api/storage/20000000-0000-4000-0000-000000000000', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
-        [('/api/link/storage/30000000-0000-4000-0000-000000000000', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')]), (None, [], [])]
+        [('/api/link/storage/30000000-0000-4000-0000-000000000000', [Kind('storagelink', 'http://schemas.ogf.org/occi/infrastructure#')], [('occi.storagelink.deviceid', 'ide:0:1')])]
+        >>> [(a.target_location, a.target_categories, a.target_title) for a in d.actions]
+        [('/api/compute/10000000-0000-4000-0000-000000000000?action=start', [Category('start', 'http://schemas.ogf.org/occi/infrastructure/compute/action#')], 'Start Compute Resource')]
 
         """
         # Set location translator for Entity instance
@@ -112,7 +115,7 @@ class DataObject(object):
                         action.term),
                     target_categories=[action],
                     target_title=action.title)
-            self.links.append(l)
+            self.actions.append(l)
 
     def save_to_entity(self, entity=None, category_registry=None,
             validate_attr=True, save_links=False):
