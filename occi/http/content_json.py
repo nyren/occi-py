@@ -84,7 +84,10 @@ class JSONRenderer(Renderer):
         json_data = []
         for obj in objects:
             json_data.append(self._json_obj(obj))
-        return json_data
+
+        # Workaround JSON array vulnerability in browser JavaScript
+        # implementations
+        return { 'collection': json_data }
 
     def _json_obj(self, obj):
         """Render `DataObject` into a JSON-friendly dictionary structure.
@@ -163,7 +166,6 @@ class JSONRenderer(Renderer):
             json_obj['attributes'][name] = value
 
         return json_obj
-
 
 def register():
     register_parser(CONTENT_TYPE, JSONParser)
