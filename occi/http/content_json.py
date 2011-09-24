@@ -24,31 +24,32 @@ except ImportError:
 import json
 
 from occi.http.parser import Parser, register_parser
-from occi.http.renderer import Renderer, register_renderer, HeaderRenderer
+from occi.http.renderer import Renderer, RendererError, register_renderer, HeaderRenderer
 from occi.http.dataobject import DataObject, LinkRepr
 
-CONTENT_TYPE = 'application/json'
+CONTENT_TYPE = 'application/occi+json'
 
 class JSONParser(Parser):
-    """Parser for the application/json content type."""
+    """Parser for the application/occi+json content type."""
     def parse(self, headers=None, body=None):
         raise NotImplemented('yet')
 
 class JSONRenderer(Renderer):
-    """Renderer for the application/json content type.
+    """Renderer for the application/occi+json content type.
 
     >>> from occi.ext.infrastructure import ComputeKind, StorageKind
     >>> cats = [ComputeKind]
     >>> links = [LinkRepr(target_location='http://example.com/storage/345', target_categories=[StorageKind])]
     >>> attrs = [('occi.compute.cores', 3), ('occi.compute.speed', 2.667)]
     >>> obj = DataObject(location='http://example.com/compute/123', categories=cats, links=links, attributes=attrs)
+    >>> obj.render_flags['resource_instance'] = True
     >>> JSONRenderer.INDENT = None
     >>> r = JSONRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Content-Type', 'application/json; charset=utf-8'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"')]
+    [('Content-Type', 'application/occi+json; charset=utf-8'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"')]
     >>> response = json.loads(r.body)
-    >>> response['categories'][0]['term']
+    >>> response['kind']['term']
     u'compute'
     >>> response['links'][0]['target_uri']
     u'http://example.com/storage/345'
@@ -73,7 +74,7 @@ class JSONRenderer(Renderer):
     def _render_single_obj(self, obj):
         """Render a single `DataObject`.
         """
-        if 'category_discovery' not in obj.render_flags:
+        if 'resource_instance' in obj.render_flags:
             category_headers = HeaderRenderer.category_headers(obj)
             [self.headers.append(('Category', h)) for h in category_headers.headers()]
         return self._json_obj(obj)
@@ -90,19 +91,17 @@ class JSONRenderer(Renderer):
         return { 'collection': json_data }
 
     def _json_obj(self, obj):
-        """Render `DataObject` into a JSON-friendly dictionary structure.
+        """Render a `DataObject` into a JSON-friendly dictionary structure.
         """
         json_obj = OrderedDict()
-        if obj.categories:
-            json_obj['categories'] = []
-        if obj.actions:
-            json_obj['actions'] = []
-        if obj.links:
-            json_obj['links'] = []
-        if obj.attributes:
-            json_obj['attributes'] = OrderedDict()
-        if obj.location:
-            json_obj['location'] = obj.location
+        json_obj['kind'] = None
+        json_obj['kinds'] = []
+        json_obj['mixins'] = []
+        json_obj['categories'] = []
+        json_obj['actions'] = []
+        json_obj['links'] = []
+        json_obj['attributes'] = OrderedDict()
+        json_obj['location'] = obj.location
 
         # Categories
         for category in obj.categories:
@@ -110,28 +109,32 @@ class JSONRenderer(Renderer):
             d['term'] = category.term
             d['scheme'] = category.scheme
 
-            cat_class = category.__class__.__name__.lower()
-            #if cat_class == 'category': cat_class = 'action'
-            d['class'] = cat_class
-
             d['title'] = category.title
             if category.related:
                 d['related'] = str(category.related)
             if category.attributes:
                 attr_defs = OrderedDict()
-                for attr in category.unique_attributes:
+                for attr in category.unique_attributes.itervalues():
                     attr_props = OrderedDict()
                     attr_props['mutable'] = attr.mutable
                     attr_props['required'] = attr.required
                     attr_props['type'] = attr.type_name
                     attr_defs[attr.name] = attr_props
                 d['attributes'] = attr_defs
+            if category.defaults:
+                d['defaults'] = category.defaults
             if hasattr(category, 'actions') and category.actions:
                 d['actions'] = [str(cat) for cat in category.actions]
             if hasattr(category, 'location') and category.location:
                 d['location'] = obj.translator.url_build(category.location, path_only=True)
 
-            json_obj['categories'].append(d)
+            cat_class = category.__class__.__name__.lower()
+            if cat_class == 'kind':
+                json_obj['kinds'].append(d)
+            elif cat_class == 'mixin':
+                json_obj['mixins'].append(d)
+            else:
+                json_obj['categories'].append(d)
 
         # Links
         for link in obj.links:
@@ -164,6 +167,21 @@ class JSONRenderer(Renderer):
         # Attributes
         for name, value in obj.attributes:
             json_obj['attributes'][name] = value
+
+        # If this is a resource instance ...
+        if 'resource_instance' in obj.render_flags:
+            try:
+                json_obj['kind'] = json_obj['kinds'][0]
+                del json_obj['kinds']
+            except KeyError, IndexError:
+                raise RendererError('Resource instance MUST be of one and only one Kind')
+        else:
+            del json_obj['kind']
+
+        # Remove empty entries
+        for k in json_obj.keys():
+            if not json_obj[k]:
+                del json_obj[k]
 
         return json_obj
 
