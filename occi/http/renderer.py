@@ -147,7 +147,7 @@ class HeaderRenderer(Renderer):
                     params.append(('rel',  category.related))
                 if category.attributes:
                     attr_defs=[]
-                    for attr in category.unique_attributes:
+                    for attr in category.unique_attributes.itervalues():
                         attr_props=[]
                         if not attr.mutable and not attr.required:
                             attr_props.append('immutable')

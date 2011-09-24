@@ -218,7 +218,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""; self="%s"; category="%s"; occi.core.title="Boot drive"; occi.storagelink.deviceid="ide:0:0"; occi.storagelink.state="active"' % (
             self._loc(self.storages[0]), self._loc(self.links[1]), str(StorageLinkKind)))
         expected_body.append('Link: <%s?action=start>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#start"; title="Start Compute Resource"' % self._loc(self.computes[0]))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[0].id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[0].id)
         expected_body.append('X-OCCI-Attribute: occi.core.title="A \\"little\\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=1.67')
         expected_body.append('X-OCCI-Attribute: occi.compute.state="inactive"')
@@ -230,7 +230,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
         expected_body = []
         expected_body.append(self._category_header(StorageLinkKind))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.links[1].id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.links[1].id)
         expected_body.append('X-OCCI-Attribute: occi.core.title="Boot drive"')
         expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % self._loc(self.computes[0]))
         expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % self._loc(self.storages[0]))
@@ -279,7 +279,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s?action=stop>; rel="http://schemas.ogf.org/occi/infrastructure/compute/action#stop"; title="Stop Compute Resource"' % self._loc(self.computes[1]))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[1].id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.computes[1].id)
         expected_body.append('X-OCCI-Attribute: occi.core.title="Another \\" VM"')
         expected_body.append('X-OCCI-Attribute: occi.compute.cores=3')
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=3.26')
@@ -327,7 +327,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         get_response = self._get(entity_id=entity_id, accept_header='text/plain')
         expected_body = []
         expected_body.append(self._category_header(NetworkKind))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id)
         expected_body.append('X-OCCI-Attribute: occi.network.vlan=123')
         self._verify_body(get_response.body, expected_body)
 
@@ -451,7 +451,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id)
         expected_body.append('X-OCCI-Attribute: occi.compute.speed=2.66')
         expected_body.append('X-OCCI-Attribute: occi.compute.memory=4.00')
         self._verify_body(response.body, expected_body)
@@ -490,7 +490,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
         expected_body = []
         expected_body.append(self._category_header(LinkKind))
-        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id.urn)
+        expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % entity_id)
         expected_body.append('X-OCCI-Attribute: occi.core.source="%s"' % source)
         expected_body.append('X-OCCI-Attribute: occi.core.target="%s"' % target)
         self._verify_body(response.body, expected_body)

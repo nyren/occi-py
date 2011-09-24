@@ -86,7 +86,7 @@ class UUIDAttribute(Attribute):
             raise self.Invalid(self.name, s)
 
     def from_native(self, u, **kwargs):
-        return u.urn
+        return str(u)
 
 class ResourceAttribute(Attribute):
     """An attribute represanting an OCCI Resource instance.
@@ -113,20 +113,23 @@ class Category(object):
     class DoesNotExist(CategoryError):
         pass
 
-    def __init__(self, term, scheme, title=None, related=None, attributes=None):
+    def __init__(self, term, scheme, title=None, related=None, attributes=None, defaults=None):
         self.term = term
         self.scheme = scheme
         self.title = title
         self.related = related
-        self.attributes = []
-        self.unique_attributes = []
+        self.attributes = OrderedDict()
+        self.unique_attributes = OrderedDict()
+        self.defaults = defaults or OrderedDict()
 
-        # Attributes
+        # Attribute definitions
         if related:
-            self.attributes.extend(related.attributes)
-        if attributes:
-            self.attributes.extend(attributes)
-            self.unique_attributes = attributes
+            self.attributes = related.attributes.copy()
+        for attr in attributes or ():
+            self.unique_attributes[attr.name] = attr
+        self.attributes.update(self.unique_attributes)
+
+        # Attribute defaults
 
     def __repr__(self):
         return "%s('%s', '%s')" % (self.__class__.__name__, self.term, self.scheme)
@@ -356,7 +359,7 @@ class Action(object):
             param_dict[param] = value
 
         # Setup the parameters for the Action instance
-        for attribute in self._occi_category.attributes:
+        for attribute in self._occi_category.attributes.itervalues():
             try:
                 value = param_dict[attribute.name]
                 del param_dict[attribute.name]
@@ -379,7 +382,7 @@ class Action(object):
 
     def _get_occi_parameters(self):
         params = []
-        for attribute in self._occi_category.attributes:
+        for attribute in self._occi_category.attributes.itervalues():
             try:
                 params.append((attribute.name, self._occi_parameters[attribute.name]))
             except KeyError:
@@ -508,7 +511,7 @@ class Entity(object):
         value = self._occi_attributes.get(name)
         if convert:
             for category in self.occi_list_categories():
-                for attribute in category.attributes:
+                for attribute in category.attributes.itervalues():
                     if attribute.name == name:
                         value = attribute.from_native(value,
                                 translator=self._occi_translator)
@@ -529,7 +532,7 @@ class Entity(object):
         """
         attr_list = []
         for category in self.occi_list_categories():
-            for attribute in category.attributes:
+            for attribute in category.attributes.itervalues():
                 if attribute.name in exclude:
                     continue
                 try:
@@ -584,7 +587,7 @@ class Entity(object):
 
         # Add attributes to the Entity instance
         for category in self.occi_list_categories():
-            for attribute in category.attributes:
+            for attribute in category.attributes.itervalues():
                 try:
                     value = attr_dict[attribute.name]
                     del attr_dict[attribute.name]

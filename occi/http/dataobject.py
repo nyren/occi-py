@@ -25,7 +25,7 @@ from occi.core import Attribute, Category, Kind, Mixin, Entity, Resource, Link, 
 class DataObject(object):
     """A data object transferred using the OCCI protocol.
 
-    A data object cat represent a resource instance, an action invocation,
+    A data object can represent a resource instance, an action invocation,
     filter parameters, etc. It is up to the handler of the particular request/response
     to interpret the contents of a `DataObject`.
     """
@@ -68,7 +68,7 @@ class DataObject(object):
         >>> d.categories
         [Kind('compute', 'http://schemas.ogf.org/occi/infrastructure#')]
         >>> d.attributes
-        [('occi.core.id', 'urn:uuid:10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 2.3333333333333335)]
+        [('occi.core.id', '10000000-0000-4000-0000-000000000000'), ('occi.compute.speed', 2.3333333333333335)]
         >>> [(l.target_location, l.target_categories, l.target_title) for l in d.links]
         [('/api/storage/20000000-0000-4000-0000-000000000000', [Kind('storage', 'http://schemas.ogf.org/occi/infrastructure#')], 'My Disk')]
         >>> [(l.link_location, l.link_categories, l.link_attributes) for l in d.links]
@@ -84,6 +84,9 @@ class DataObject(object):
         self.categories = entity.occi_list_categories()
         self.attributes = entity.occi_export_attributes(convert=True)
         self.location = self.translator.from_native(entity)
+
+        # Mark object a resource instance for content-aware renderers
+        self.render_flags['resource_instance'] = True
 
         # Links
         if isinstance(entity, Resource):

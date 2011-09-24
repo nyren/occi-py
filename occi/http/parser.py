@@ -19,7 +19,7 @@
 
 import re
 
-from occi.core import Category, Kind, Mixin
+from occi.core import Category, Kind, Mixin, Attribute
 from occi.http.header import (HttpHeaderError, HttpHeadersBase,
         HttpWebHeadersBase, HttpCategoryHeaders, HttpLinkHeaders,
         HttpAttributeHeaders, HttpAcceptHeaders)
@@ -205,8 +205,24 @@ class HeaderParser(Parser):
 
             # Supported attributes (mutable)
             try:
-                attributes = param['attributes'].split()
-            except KeyError:
+                attributes = []
+                SPEC_PLAIN = re.compile(r'^([a-z0-9._-]+)$')
+                SPEC_PROPS = re.compile(r'^([a-z0-9._-]+){(.*)}$')
+                for attr_spec in param['attributes'].split():
+                    attr_kwargs = {}
+                    m = SPEC_PLAIN.match(attr_spec)
+                    if not m:
+                        m = SPEC_PROPS.match(attr_spec)
+                        if not m:
+                            raise HttpHeaderError('%s: Invalid attribute specification in Category header' % attr_spec)
+                        else:
+                            for prop in m.groups()[1].split():
+                                if prop == 'required':
+                                    attr_kwargs['required'] = True
+                                if prop == 'immutable':
+                                    attr_kwargs['mutable'] = False
+                    attributes.append(Attribute(m.groups()[0], **attr_kwargs))
+            except KeyError, IndexError:
                 attributes = None
 
             # Supported actions
@@ -256,7 +272,7 @@ class TextPlainParser(Parser):
     >>> body += '    class=kind;\\r\\n'
     >>> body += '    title="Network Resource";\\r\\n'
     >>> body += '    rel="http://schemes.ogf.org/occi/core#resource";\\r\\n'
-    >>> body += '    attributes="occi.network.vlan occi.network.label";\\r\\n'
+    >>> body += '    attributes="occi.network.vlan occi.network.label occi.network.state{immutable}";\\r\\n'
     >>> body += '    actions="http://schemas.ogf.org/occi/infrastructure/network/action#up http://schemas.ogf.org/occi/infrastructure/network/action#down"\\n'
     >>> body += 'Category: ipnetwork; scheme="http://schemes.ogf.org/occi/infrastructure#"; class="mixin"\\r\\n'
     >>> body += 'X-OCCI-Attribute: title="Test Network, testing"\\n'
@@ -268,6 +284,11 @@ class TextPlainParser(Parser):
     ['*/*', 'text/*']
     >>> p.objects[0].categories
     [Kind('network', 'http://schemes.ogf.org/occi/infrastructure#'), Mixin('ipnetwork', 'http://schemes.ogf.org/occi/infrastructure#')]
+    >>> network_kind = p.objects[0].categories[0]
+    >>> network_kind.term
+    'network'
+    >>> network_kind.attributes['occi.network.state']
+    Attribute('occi.network.state', required=True, mutable=False)
     >>> p.objects[0].links
     []
     >>> p.objects[0].attributes
