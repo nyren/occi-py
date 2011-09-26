@@ -17,4 +17,12 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+try:
+    from collections import OrderedDict
+except ImportError:
+    try:
+        from ordereddict import OrderedDict
+    except ImportError:
+        OrderedDict = dict
+
 __version__ = '0.7'

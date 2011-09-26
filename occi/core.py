@@ -17,11 +17,8 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-try:
-    from ordereddict import OrderedDict
-except ImportError:
-    OrderedDict = dict
 import uuid
+from occi import OrderedDict
 
 class Attribute(object):
     type_name = 'string'

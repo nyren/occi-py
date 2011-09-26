@@ -17,12 +17,9 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-try:
-    from ordereddict import OrderedDict
-except ImportError:
-    OrderedDict = dict
 import json
 
+from occi import OrderedDict
 from occi.http.parser import Parser, register_parser
 from occi.http.renderer import Renderer, RendererError, register_renderer, HeaderRenderer
 from occi.http.dataobject import DataObject, LinkRepr

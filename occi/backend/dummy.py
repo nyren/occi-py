@@ -18,11 +18,8 @@
 #
 
 import uuid
-try:
-    from ordereddict import OrderedDict
-except ImportError:
-    OrderedDict = dict
 
+from occi import OrderedDict
 from occi.core import Entity, Resource, Link
 from occi.backend import ServerBackend
 
