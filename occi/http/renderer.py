@@ -28,11 +28,16 @@ _renderers= {}
 class RendererError(Exception):
     pass
 
-def register_renderer(content_type, renderer):
-    _renderers[content_type] = renderer
+def register_renderer(renderer, pattern=None, media_type=None, default=False):
+    if default:
+        pattern = None
+    else:
+        media_type = media_type or renderer.MEDIA_TYPE
+        pattern = pattern or media_type
+    _renderers[pattern] = (renderer, media_type)
 
-def unregister_renderer(content_type):
-    del _renderers[content_type]
+def unregister_renderer(pattern):
+    del _renderers[pattern]
 
 def get_renderer(accept_types=None):
     """Return a renderer matching the list of accepted content-types.
@@ -58,23 +63,23 @@ def get_renderer(accept_types=None):
     >>> p = get_renderer(['text/html', 'image/jpeg', 'image/png'])
     Traceback (most recent call last):
         File "renderer.py", line 41, in renderer
-    RendererError: No renderer found for requested content types
+    RendererError: No renderer found for requested media types
     """
-    r = None
+    renderer = None
     if not accept_types:
-        r = _renderers.get(None)
+        renderer, media_type = _renderers.get(None)
     else:
-        for content_type in accept_types:
+        for pattern in accept_types:
             try:
-                r = _renderers[content_type]
+                renderer, media_type = _renderers[pattern]
             except KeyError:
                 pass
             else:
                 break
 
-    if not r:
-        raise RendererError('No renderer found for requested content types')
-    return r()
+    if not renderer:
+        raise RendererError('No renderer found for requested media types')
+    return renderer(media_type=media_type)
 
 class Renderer(object):
     """Renderer base class.
@@ -87,7 +92,10 @@ class Renderer(object):
     :var body: The HTTP Body as a string
 
     """
-    def __init__(self):
+    MEDIA_TYPE = 'text/plain'
+
+    def __init__(self, media_type=None):
+        self.media_type = media_type or self.MEDIA_TYPE
         self.headers = []
         self.body = ''
 
@@ -110,17 +118,19 @@ class HeaderRenderer(Renderer):
     >>> r = HeaderRenderer()
     >>> r.render([obj])
     >>> r.headers
-    [('Content-Type', 'text/occi'), ('X-OCCI-Location', 'http://example.com/compute/123')]
+    [('Content-Type', 'text/occi; charset=utf-8'), ('X-OCCI-Location', 'http://example.com/compute/123')]
     >>> r.body
     ''
     >>> r = HeaderRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Content-Type', 'text/occi'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
+    [('Content-Type', 'text/occi; charset=utf-8'), ('Category', 'compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"'), ('Link', '<http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""'), ('X-OCCI-Attribute', 'occi.compute.memory="2.0"'), ('X-OCCI-Attribute', 'occi.compute.speed="2.667"')]
 
     """
+    MEDIA_TYPE = 'text/occi'
+
     def render(self, objects):
-        self.headers.append(('Content-Type', 'text/occi'))
+        self.headers.append(('Content-Type', '%s; charset=utf-8' % self.media_type))
         if isinstance(objects, list) or isinstance(objects, tuple):
             self._render_obj_list(objects)
         else:
@@ -215,23 +225,25 @@ class TextPlainRenderer(HeaderRenderer):
     >>> r = TextPlainRenderer()
     >>> r.render([obj])
     >>> r.headers
-    [('Content-Type', 'text/plain')]
+    [('Content-Type', 'text/plain; charset=utf-8')]
     >>> r.body
     'X-OCCI-Location: http://example.com/compute/123\\r\\n'
     >>> r = TextPlainRenderer()
     >>> r.render(obj)
     >>> r.headers
-    [('Content-Type', 'text/plain')]
+    [('Content-Type', 'text/plain; charset=utf-8')]
     >>> r.body
     'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"\\r\\nLink: <http://example.com/storage/345>; rel="http://schemas.ogf.org/occi/infrastructure#storage"; title=""\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
 
     """
+    MEDIA_TYPE = 'text/plain'
+
     def render(self, objects):
         super(TextPlainRenderer, self).render(objects)
         for name, value in self.headers[1:]:
             self.body += '%s: %s\r\n' % (name, value)
         self.headers = []
-        self.headers.append(('Content-Type', 'text/plain'))
+        self.headers.append(('Content-Type', '%s; charset=utf-8' % self.media_type))
 
 class TextURIListRenderer(Renderer):
     """Renderer for the text/uri-list content type.
@@ -246,18 +258,20 @@ class TextURIListRenderer(Renderer):
     >>> r = TextURIListRenderer()
     >>> r.render(objs)
     >>> r.headers
-    [('Content-Type', 'text/uri-list')]
+    [('Content-Type', 'text/uri-list; charset=utf-8')]
     >>> r.body
     '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
     >>> r = TextURIListRenderer()
     >>> r.render(objs[1])
     >>> r.headers
-    [('Content-Type', 'text/uri-list')]
+    [('Content-Type', 'text/uri-list; charset=utf-8')]
     >>> r.body
     '/compute/234\\r\\n'
     """
+    MEDIA_TYPE = 'text/uri-list'
+
     def render(self, objects):
-        self.headers.append(('Content-Type', 'text/uri-list'))
+        self.headers.append(('Content-Type', '%s; charset=utf-8' % self.media_type))
         if not isinstance(objects, list) and not isinstance(objects, tuple):
             objects = [objects]
         for obj in objects:
@@ -277,13 +291,13 @@ class TextRenderer(Renderer):
     >>> r = TextRenderer()
     >>> r.render(objs)
     >>> r.headers
-    [('Content-Type', 'text/uri-list')]
+    [('Content-Type', 'text/uri-list; charset=utf-8')]
     >>> r.body
     '/compute/123\\r\\n/compute/234\\r\\n/storage/345\\r\\n'
     >>> r = TextRenderer()
     >>> r.render(objs[1])
     >>> r.headers
-    [('Content-Type', 'text/plain')]
+    [('Content-Type', 'text/plain; charset=utf-8')]
     >>> r.body
     'Category: compute; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"; title="Compute Resource"\\r\\nX-OCCI-Attribute: occi.compute.memory="2.0"\\r\\nX-OCCI-Attribute: occi.compute.speed="2.667"\\r\\n'
     """
@@ -297,12 +311,12 @@ class TextRenderer(Renderer):
         self.body = r.body
 
 # Register required renderers
-register_renderer(None, TextPlainRenderer)
-register_renderer('text/occi', HeaderRenderer)
-register_renderer('text/plain', TextPlainRenderer)
-register_renderer('text/uri-list', TextURIListRenderer)
-register_renderer('text/*', TextRenderer)
-register_renderer('*/*', TextPlainRenderer)
+register_renderer(TextPlainRenderer, default=True)
+register_renderer(HeaderRenderer)
+register_renderer(TextPlainRenderer)
+register_renderer(TextURIListRenderer)
+register_renderer(TextRenderer, pattern='text/*')
+register_renderer(TextPlainRenderer, pattern='*/*')
 
 
 if __name__ == "__main__":

@@ -24,7 +24,6 @@ from occi.http.parser import Parser, register_parser
 from occi.http.renderer import Renderer, RendererError, register_renderer, HeaderRenderer
 from occi.http.dataobject import DataObject, LinkRepr
 
-CONTENT_TYPE = 'application/occi+json'
 
 class JSONParser(Parser):
     """Parser for the application/occi+json content type."""
@@ -57,11 +56,11 @@ class JSONRenderer(Renderer):
     >>> response['attributes']['occi.compute.speed'] == 2.667
     True
     """
-
+    MEDIA_TYPE = 'application/occi+json'
     INDENT = 4
 
     def render(self, objects):
-        self.headers.append(('Content-Type', '%s; charset=utf-8' % CONTENT_TYPE))
+        self.headers.append(('Content-Type', '%s; charset=utf-8' % self.media_type))
         if isinstance(objects, list) or isinstance(objects, tuple):
             json_data = self._render_obj_list(objects)
         else:
@@ -183,8 +182,9 @@ class JSONRenderer(Renderer):
         return json_obj
 
 def register():
-    register_parser(CONTENT_TYPE, JSONParser)
-    register_renderer(CONTENT_TYPE, JSONRenderer)
+    #register_parser(JSONParser)
+    register_renderer(JSONRenderer)
+    register_renderer(JSONRenderer, media_type='application/json')
 
 if __name__ == "__main__":
     import doctest

@@ -190,27 +190,27 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_get(self):
         response = self._get()
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers[0], ('Content-Type', 'text/plain'))
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/plain; charset=utf-8'))
 
     def test_get__text_occi(self):
         response = self._get(accept_header='text/*, text/occi')
         self.assertEqual(response.body, '')
-        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi; charset=utf-8'))
         self.assertEqual(len(response.headers), 9)
 
     def test_get__text_plain(self):
         response = self._get(accept_header='text/occi;q=0.5, text/plain;q=0.8')
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
         self.assertNotEqual(response.body, '')
 
     def test_get__text_urilist(self):
         response = self._get(accept_header='text/plain;q=0.9, text/uri-list')
-        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list; charset=utf-8')])
         self.assertEqual(response.body[:44+len(self.BASE_URL)+1], self._loc(self.computes[0]))
 
     def test_get__text_any(self):
         response = self._get(accept_header='text/*, */*;q=0.1')
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
         expected_body = []
         expected_body.append(self._category_header(ComputeKind))
         expected_body.append('Link: <%s>; rel="http://schemas.ogf.org/occi/infrastructure#network http://schemas.ogf.org/occi/infrastructure/network#ipnetwork"; title="Internet"; self="%s"; category="%s"; occi.core.title="Primary Interface"; occi.networkinterface.interface="eth0"; occi.networkinterface.mac="00:11:22:33:44:55"; occi.networkinterface.state="active"; occi.networkinterface.ip="11.12.13.14"; occi.networkinterface.allocation="static"' % (
@@ -227,7 +227,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
     def test_get_link(self):
         response = self._get(entity_id=self.links[1].id,
                 accept_header='text/plain')
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
         expected_body = []
         expected_body.append(self._category_header(StorageLinkKind))
         expected_body.append('X-OCCI-Attribute: occi.core.id="%s"' % self.links[1].id)
@@ -271,7 +271,7 @@ class EntityHandlerTestCase(HandlerTestCaseBase):
         self.assertEqual(response.body, self._loc(entity) + '\r\n')
         self.assertEqual(response.status, 200)
         expected_headers = []
-        expected_headers.append(('Content-Type', 'text/uri-list'))
+        expected_headers.append(('Content-Type', 'text/uri-list; charset=utf-8'))
         expected_headers.append(('Location', self._loc(entity)))
         self._verify_headers(response.headers, expected_headers)
 
@@ -372,12 +372,12 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_get_all_default(self):
         response = self._get()
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
 
     def test_get_all_text_occi(self):
         response = self._get(headers=[('accept', 'text/occi')])
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi; charset=utf-8'))
 
         expected_headers = []
         for entity in self.entities:
@@ -387,7 +387,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_get_all_text_any(self):
         response = self._get(headers=[('accept', 'text/*')])
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/uri-list; charset=utf-8')])
 
         expected_body = []
         for entity in self.entities:
@@ -397,7 +397,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
     def test_get_all_text_plain(self):
         response = self._get(headers=[('accept', 'text/plain')])
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.headers, [('Content-Type', 'text/plain')])
+        self.assertEqual(response.headers, [('Content-Type', 'text/plain; charset=utf-8')])
 
         expected_body = []
         for entity in self.entities:
@@ -557,7 +557,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
         response = self.handler.get(request)
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, '')
-        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi'))
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/occi; charset=utf-8'))
         self.assertEqual(len(response.headers), len(self.backend.registry.all()) + 1)
 
         expected_headers = []
@@ -573,7 +573,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
     def test_post(self):
         location='my_stuff/'
         path = self.BASE_URL + '/' + location
-        headers = [('Content-Type', 'text/occi')]
+        headers = [('Content-Type', 'text/occi; charset=utf-8')]
         headers.append(('Category', 'my_stuff; scheme="http://example.com/occi/custom#"; class=mixin; location=%s' % path))
         headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"; class=mixin; location=taggy/'))
         request = HttpRequest(headers, '')
@@ -587,7 +587,7 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
 
     def test_delete(self):
         self.test_post()
-        headers = [('Content-Type', 'text/occi')]
+        headers = [('Content-Type', 'text/occi; charset=utf-8')]
         headers.append(('Category', 'taggy; scheme="http://example.com/occi/custom#"'))
         request = HttpRequest(headers, '')
         response = self.handler.delete(request)
