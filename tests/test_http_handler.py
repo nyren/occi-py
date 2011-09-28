@@ -570,6 +570,24 @@ class DiscoveryHandlerTestCase(HandlerTestCaseBase):
 
         self._verify_headers(response.headers[1:5], expected_headers)
 
+    def test_get_filter(self):
+        request_headers = [('Accept', 'text/plain')]
+        request_headers.append(('Content-Type', 'text/occi'))
+        request_headers.append(('Category', 'storage; scheme="http://schemas.ogf.org/occi/infrastructure#"; class="kind"'))
+        request = HttpRequest(request_headers, '')
+        response = self.handler.get(request)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers[0], ('Content-Type', 'text/plain; charset=utf-8'))
+
+        expected_body = []
+        expected_body.append(self._category_header(StorageKind) +
+                '; rel="http://schemas.ogf.org/occi/core#resource"' +
+                '; attributes="%s"; actions="%s"; location="%s"' % (
+                    'occi.storage.size{required} occi.storage.state{immutable}',
+                    ' '.join([str(cat) for cat in StorageKind.actions]),
+                    '/api/storage/'))
+        self._verify_body(response.body, expected_body)
+
     def test_post(self):
         location='my_stuff/'
         path = self.BASE_URL + '/' + location

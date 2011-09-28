@@ -548,8 +548,21 @@ class DiscoveryHandler(HandlerBase):
         except HttpRequestError as e:
             return e.response
 
+        # Category filter
+        categories = []
+        if not parser.objects or not parser.objects[0].categories:
+            categories = self.backend.registry.all()
+        else:
+            for category in parser.objects[0].categories:
+                try:
+                    category = self.backend.registry.lookup_id(str(category))
+                except Category.DoesNotExist:
+                    return hrc.NOT_FOUND('%s: Category not found' % category)
+                else:
+                    categories.append(category)
+
         dao = DataObject(translator=self.translator,
-                categories=self.backend.registry.all())
+                categories=categories)
         dao.render_flags['category_discovery'] = True
 
         # Render response
