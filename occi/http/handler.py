@@ -522,7 +522,7 @@ class CollectionHandler(HandlerBase):
         entities = []
         for dao in parser.objects:
             if not dao.location:
-                return hrc.BAD_REQUEST('resource instance location expected')
+                raise HttpRequestError(hrc.BAD_REQUEST('resource instance location expected'))
             entity = self.translator.to_native(dao.location)
             entity = self._get_entity(entity.id, user=request.user)
             if add:
@@ -532,10 +532,7 @@ class CollectionHandler(HandlerBase):
             entities.append(entity)
 
         # Save all updated entities using a single backend operation
-        try:
-            self._save_entities(entities, user=request.user)
-        except HttpRequestError as e:
-            return e.response
+        self._save_entities(entities, user=request.user)
 
 class DiscoveryHandler(HandlerBase):
     """HTTP handler for the OCCI discovery interface."""
