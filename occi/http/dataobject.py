@@ -47,6 +47,30 @@ class DataObject(object):
         self.parse_flags = {}
         self.render_flags = {}
 
+    def get_entity_id(self):
+        """Extract Entity ID from `DataObject` if found.
+
+        >>> dao = DataObject()
+        >>> dao.location = 'http://example.com/compute/10000000-0000-4000-0000-000000000000'
+        >>> dao.get_entity_id()
+        UUID('10000000-0000-4000-0000-000000000000')
+        >>> dao.attributes.append(('occi.core.id', '20000000-0000-4000-0000-000000000000'))
+        >>> dao.get_entity_id()
+        UUID('20000000-0000-4000-0000-000000000000')
+
+        """
+        entity_id = None
+        if self.attributes:
+            for attr, value in self.attributes:
+                if attr == 'occi.core.id':
+                    entity = Entity(EntityKind)
+                    entity.occi_import_attributes([('occi.core.id', value)], validate=False)
+                    entity_id = entity.id
+        elif self.location:
+            entity = self.translator.to_native(self.location)
+            if entity: entity_id = entity.id
+        return entity_id
+
     def load_from_entity(self, entity):
         """Load `DataObject` with the contents of the specified Entity instance.
 
@@ -94,7 +118,7 @@ class DataObject(object):
                 link.occi_set_translator(self.translator)
                 target = link.occi_get_attribute('occi.core.target')
                 if not target:
-                    # Ignore incomplet Link object
+                    # Ignore incomplete Link object
                     print "%s: occi.core.target not defined" % link.id
                     continue
                 l = LinkRepr(

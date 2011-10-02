@@ -56,6 +56,7 @@ class JSONRenderer(Renderer):
     >>> response['attributes']['occi.compute.speed'] == 2.667
     True
     """
+    OCCI_SPECIFICATION = ('occi', 'json', '1.1')
     MEDIA_TYPE = 'application/occi+json'
     INDENT = 4
 
@@ -97,7 +98,6 @@ class JSONRenderer(Renderer):
         json_obj['actions'] = []
         json_obj['links'] = []
         json_obj['attributes'] = OrderedDict()
-        json_obj['location'] = obj.location
 
         # Categories
         for category in obj.categories:

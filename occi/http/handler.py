@@ -17,6 +17,7 @@
 # along with the occi-py library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from occi import OrderedDict
 from occi.core import Category, Kind, Mixin, Entity
 from occi.backend import ServerBackend
 from occi.http import get_parser, get_renderer, HttpRequest, HttpResponse
@@ -131,22 +132,10 @@ class HandlerBase(object):
             print e
             raise HttpRequestError(hrc.SERVER_ERROR())
 
-    def _save_entities(self, entities, user=None):
+    def _save_entities(self, entities=None, delete_entity_ids=None, user=None):
         """Save Entity objects to backend."""
         try:
-            return self.backend.save_entities(entities, user=user)
-        except Entity.DoesNotExist as e:
-            raise HttpRequestError(hrc.NOT_FOUND(e))
-        except ServerBackend.InvalidOperation as e:
-            raise HttpRequestError(hrc.BAD_REQUEST(e))
-        except ServerBackend.ServerBackendError as e:
-            print e
-            raise HttpRequestError(hrc.SERVER_ERROR())
-
-    def _delete_entities(self, entity_ids, user=None):
-        """Delete Entity IDs from backend."""
-        try:
-            return self.backend.delete_entities(entity_ids, user=user)
+            return self.backend.save_entities(entities, delete_entity_ids=delete_entity_ids, user=user)
         except Entity.DoesNotExist as e:
             raise HttpRequestError(hrc.NOT_FOUND(e))
         except ServerBackend.InvalidOperation as e:
@@ -363,9 +352,20 @@ class EntityHandler(HandlerBase):
         except ValueError:
             location = None
             entity_id = path
+        else:
+            # Lookup location path
+            location_category = self.backend.registry.lookup_location(location)
+
         try:
             parser, renderer = self._request_init(request)
-            self._delete_entities([entity_id])
+            if isinstance(location_category, Mixin):
+                entity = self._get_entity(entity_id, user=user)
+                entity.occi_remove_mixin(location_category)
+                self._save_entities([entity], user=request.user)
+            else:
+                self._save_entities(delete_entity_ids=[entity_id], user=request.user)
+        except Entity.UnknownCategory:
+            pass
         except HttpRequestError as e:
             return e.response
 
@@ -375,10 +375,19 @@ class CollectionHandler(HandlerBase):
     """HTTP handler for collections."""
 
     def get(self, request, path):
-        """Get the resource instances in the specified `Kind` collection"""
+        """Get the resource instances in the specified collection"""
 
         # Lookup location path
         categories = self.backend.registry.lookup_recursive(path or '')
+
+        # If path is not a Kind/Mixin location filter out everything but Kind
+        # categories
+        if len(categories) > 1:
+            t = []
+            for category in categories:
+                if isinstance(category, Kind):
+                    t.append(category)
+            categories = t
 
         # Parse request
         try:
@@ -390,9 +399,9 @@ class CollectionHandler(HandlerBase):
         entities = []
         try:
             for category in categories:
-                if isinstance(category, Kind):
-                    entities.extend(self._filter_entities(categories=[category],
-                            dao_filter=parser.objects, user=request.user))
+                entities.extend(self._filter_entities(categories=[category],
+                        dao_filter=parser.objects, user=request.user))
+
         except HttpRequestError as e:
             return e.response
 
@@ -414,11 +423,26 @@ class CollectionHandler(HandlerBase):
         location_category = self.backend.registry.lookup_location(path)
 
         # Action request?
-        if request.query_args:
+        if 'action' in request.query_args:
             if not location_category:
                 return hrc.BAD_REQUEST('%s: not a Kind nor Mixin location' % path)
             return self._collection_action(request, location_category)
+        elif request.query_args:
+            return hrc.BAD_REQUEST('Unsupported query parameters')
 
+        return self._update_collection(request, location_category, replace=False)
+
+    def put(self, request, path):
+        """Replace all resource instances in a collection"""
+
+        # Lookup location path
+        location_category = self.backend.registry.lookup_location(path)
+
+        if not location_category:
+            return hrc.BAD_REQUEST('%s: not a Kind nor Mixin location' % path)
+        return self._update_collection(request, location_category, replace=True)
+
+    def _update_collection(self, request, location_category, replace=False):
         # Parse request
         try:
             parser, renderer = self._request_init(request)
@@ -429,8 +453,34 @@ class CollectionHandler(HandlerBase):
         if not parser.objects:
             return hrc.BAD_REQUEST('No resource instance(s) specified')
 
+        # Entities to update and delete
+        entities_updated = {}
+        entities_deleted = {}
+
+        # Only possible to replace a pure Kind/Mixin location
+        if replace:
+            assert(location_category)
+            # When replacing the whole collection we need to:
+            #  - Remove the all entities of Kind not part of the update.
+            #  - Remove the Mixin from all entities not part of the update.
+            try:
+                if isinstance(location_category, Kind):
+                    for entity in self._filter_entities(
+                            categories=[location_category], user=request.user):
+                        entities_deleted[entity_id] = True
+                elif isinstance(location_category, Mixin):
+                    for entity in self._filter_entities(
+                            categories=[location_category], user=request.user):
+                        try:
+                            entity.occi_remove_mixin(location_category)
+                        except Entity.UnknownCategory:
+                            pass
+                        else:
+                            entities_updated[entity.id] = entity
+            except HttpRequestError as e:
+                return e.response
+
         # Convert request objects to entity instances
-        entities = []
         try:
             for dao in parser.objects:
                 # Add location category to entity dao
@@ -438,39 +488,48 @@ class CollectionHandler(HandlerBase):
                     dao.categories.append(location_category)
                 dao.translator = self.translator
 
-                # Entity ID specified in request?
-                entity_id = None
-                if dao.attributes:
-                    for attr, value in dao.attributes:
-                        if attr == 'occi.core.id':
-                            entity_id = value
-                elif dao.location:
-                    entity = self.translator.to_native(dao.location)
-                    if entity: entity_id = entity.id
+                # Get Entity ID from request
+                entity_id = dao.get_entity_id()
+
+                # COMPAT: OCCI HTTP Rendering 1.1 does not threat PUT
+                # /mixin_loc/ as a resource create/replace operation.
+                # Use non-replace mode as workaround.
+                _do_replace = replace
+                if replace and parser.specification() in ('occi-http-1.1'):
+                    _do_replace = False
 
                 # Attempt to load existing Entity
-                if entity_id:
-                    entity = self._get_entity(entity_id, user=request.user)
+                if entity_id and not _do_replace:
+                    try:
+                        entity = entities_updated[entity_id]
+                    except KeyError:
+                        entity = self._get_entity(entity_id, user=request.user)
                 else:
                     entity = None
 
                 # Create/update entity object
-                entity = dao.save_to_entity(entity=entity, save_links=True,
+                # FIXME: If replacing the entity we leave all links untouched.
+                # This is according to spec but is it convenient?
+                entity = dao.save_to_entity(entity=entity, save_links=(not replace),
                         category_registry=self.backend.registry)
-                entities.append(entity)
+                entities_updated[entity.id] = entity
+                entities_deleted.pop(entity.id, None)
 
                 # Add Link objects to list of modified entities
                 if hasattr(entity, 'links'):
                     for link in entity.links:
-                        entities.append(link)
+                        entities_updated[link.id] = link
         except DataObject.Invalid as e:
             return hrc.BAD_REQUEST(e)
         except HttpRequestError as e:
             return e.response
 
-        # Save all entities using a single backend operation
+        # Save (and delete) all affected entities using a single backend operation
         try:
-            entities = self._save_entities(entities, user=request.user)
+            entities = self._save_entities(
+                    entities_updated.values(),
+                    delete_entity_ids=entities_deleted.keys(),
+                    user=request.user)
         except HttpRequestError as e:
             return e.response
 
@@ -492,47 +551,52 @@ class CollectionHandler(HandlerBase):
 
         return HttpResponse(renderer.headers, renderer.body)
 
-    def _collection_action(self, request, category):
-        return hrc.NOT_IMPLEMENTED()
-
-    def put(self, request, path):
-        """Replace all resource instances in a collection"""
-        return hrc.NOT_IMPLEMENTED()
-
     def delete(self, request, path):
-        """Remove resource instance(s) from collection. Only allowed for Mixin
-        collections.
-        """
+        """Remove resource instance(s) from collection."""
         # Lookup location path
         location_category = self.backend.registry.lookup_location(path)
 
-        if isinstance(location_category, Mixin):
-            try:
-                self._update_mixin_collection(request, location_category, add=False)
-            except HttpRequestError as e:
-                return e.response
-            return hrc.ALL_OK()
-        return hrc.NOT_IMPLEMENTED()
-
-    def _update_mixin_collection(self, request, mixin_category, add=True):
         # Parse request
-        parser, renderer = self._request_init(request)
+        try:
+            parser, renderer = self._request_init(request)
+        except HttpRequestError as e:
+            return e.response
 
-        # Get entities corresponding to the given locations
-        entities = []
-        for dao in parser.objects:
-            if not dao.location:
-                raise HttpRequestError(hrc.BAD_REQUEST('resource instance location expected'))
-            entity = self.translator.to_native(dao.location)
-            entity = self._get_entity(entity.id, user=request.user)
-            if add:
-                entity.occi_add_mixin(mixin_category)
-            else:
-                entity.occi_remove_mixin(mixin_category)
-            entities.append(entity)
+        entities_updated = {}
+        entities_deleted = {}
+        try:
+            for dao in parser.objects:
+                # Get ID of Entity to be deleted from collection
+                entity_id = dao.get_entity_id()
+                if not entity_id:
+                    continue
 
-        # Save all updated entities using a single backend operation
-        self._save_entities(entities, user=request.user)
+                if isinstance(location_category, Kind):
+                    entities_deleted[entity_id]
+                elif isinstance(location_category, Mixin):
+                    entity = self._get_entity(entity_id, user=request.user)
+                    try:
+                        entity.occi_remove_mixin(location_category)
+                    except Entity.UnknownCategory:
+                        pass
+                    else:
+                        entities_updated[entity.id] = entity
+
+            # Save/delete entities
+            self._save_entities(entities_updated.itervalues(),
+                    delete_entity_ids=entities_deleted.iterkeys(),
+                    user=request.user)
+        except DataObject.Invalid as e:
+            return hrc.BAD_REQUEST(e)
+        except HttpRequestError as e:
+            return e.response
+
+        return hrc.ALL_OK()
+
+    def _collection_action(self, request, category):
+        """FIXME: Implement! """
+        # Try to share as much code as possible with EntityHandler._post_action()
+        return hrc.ALL_OK('')
 
 class DiscoveryHandler(HandlerBase):
     """HTTP handler for the OCCI discovery interface."""
@@ -616,12 +680,12 @@ class DiscoveryHandler(HandlerBase):
         # Store Mixins in backend and save to Category registry
         try:
             for mixin in mixins:
-                mixin = self.backend.add_user_mixin(mixin, user=request.user)
+                mixin = self.backend.add_user_category(mixin, user=request.user)
                 try:
                     # FIXME: locking needed to avoid race condition
                     self.backend.registry.register(mixin)
                 except Category.Invalid as e:
-                    self.backend.remove_user_mixin(mixin, user=request.user)
+                    self.backend.remove_user_category(mixin, user=request.user)
                     return hrc.BAD_REQUEST(e)
         except ServerBackend.InvalidOperation as e:
             return hrc.BAD_REQUEST(e)
@@ -664,7 +728,7 @@ class DiscoveryHandler(HandlerBase):
         # Remove Mixins from backend and Category registry
         try:
             for mixin in mixins:
-                self.backend.remove_user_mixin(mixin, user=request.user)
+                self.backend.remove_user_category(mixin, user=request.user)
                 try:
                     self.backend.registry.unregister(mixin)
                 except Category.Invalid as e:

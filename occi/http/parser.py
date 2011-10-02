@@ -82,10 +82,15 @@ class Parser(object):
     :var accept_types: A list of content types (populated by Parser.parse())
 
     """
+    OCCI_SPECIFICATION = ('vendor', 'name', 'version')
+
     def __init__(self, translator=None):
         self.objects = []
         self.accept_types = []
         self.translator = translator or URLTranslator('')
+
+    def specification(self):
+        return '-'.join(self.OCCI_SPECIFICATION)
 
     def parse(self, headers=None, body=None):
         """The parse method doing the actual work. This method must be called
@@ -132,6 +137,8 @@ class HeaderParser(Parser):
     >>> p.objects[0].location
 
     """
+    OCCI_SPECIFICATION = ('occi', 'http', '1.1')
+
     def parse(self, headers=None, body=None):
         categories = []
         links = []
@@ -301,6 +308,8 @@ class TextPlainParser(Parser):
     >>> [obj.location for obj in p.objects]
     ['http://example.com/network/123', 'http://example.com/network/234', 'http://example.com/network/345']
     """
+    OCCI_SPECIFICATION = ('occi', 'http', '1.1')
+
     def __init__(self, translator=None):
         self._header_parser = HeaderParser(translator=translator)
 
@@ -344,6 +353,8 @@ class TextURIListParser(Parser):
     >>> [obj.location for obj in p.objects]
     ['http://example.com/network/123', 'http://example.com/network/234', 'http://example.com/network/345']
     """
+    OCCI_SPECIFICATION = ('occi', 'http', '1.1')
+
     def parse(self, headers=None, body=None):
         super(TextURIListParser, self).parse(headers, body)
         body = body or ''

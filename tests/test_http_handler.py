@@ -30,6 +30,15 @@ from occi.ext.infrastructure import *
 class HandlerTestCaseBase(unittest.TestCase):
     BASE_URL = '/api'
 
+    CustomMixin = Mixin('credentials', 'http://example.com/occi/user#',
+            title='User credentials',
+            location='user/credentials/',
+            attributes=(
+                Attribute('com.example.owner', required=False, mutable=True),
+                Attribute('com.example.group', required=False, mutable=True),
+            ),
+    )
+
     def setUp(self):
         # OCCI Server Backend
         backend = DummyBackend()
@@ -48,6 +57,9 @@ class HandlerTestCaseBase(unittest.TestCase):
         backend.registry.register(NetworkInterfaceKind)
         backend.registry.register(IPNetworkInterfaceMixin)
         backend.registry.register(StorageLinkKind)
+
+        # Register custom Mixin types
+        backend.registry.register(self.CustomMixin)
 
         # Pre-populate backend: Compute Resources
         entities = []
@@ -435,7 +447,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         request_headers.append(('Category', 'compute; scheme=http://schemas.ogf.org/occi/infrastructure#'))
         request_headers.append(('x-occi-attribute', 'occi.compute.speed=2.66'))
         request_headers.append(('x-occi-attribute', 'occi.compute.memory=4.0'))
-        response = self._post(path='/compute/', headers=request_headers, content_type='text/occi')
+        response = self._post(path=ComputeKind.location, headers=request_headers, content_type='text/occi')
 
         # Assume success
         self.assertEqual(response.status, 200)
@@ -460,7 +472,7 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
 
     def test_post_resoure_required_attr(self):
         # Storage has a required attribute, see what happens
-        response = self._post(path='/storage/')         # Location implies the Kind
+        response = self._post(path=StorageKind.location)         # Location implies the Kind
 
         # Bad Request since occi.storage.size is required but not specified
         self.assertEqual(response.body, '"occi.storage.size": Required attribute')
@@ -515,11 +527,16 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         response = self._post(headers=request_headers, path=path, query_args={'action': ['start']})
 
         # Expect bad request, action on name-space path not supported
-        self.assertEqual(response.status, 400)
+        if not path:
+            self.assertEqual(response.status, 400)
+
+        return response
 
     def test_post_action_compute(self):
-        path = self.BASE_URL + '/' + ComputeKind.location
-        self.test_post_action(path=path)
+        path = ComputeKind.location
+        response = self.test_post_action(path=path)
+        self.assertEqual(response.body, '')
+        self.assertEqual(response.status, 200)
 
     def test_post_mixin(self, path=None):
         path = path or IPNetworkMixin.location
@@ -535,6 +552,26 @@ class CollectionHandlerTestCase(HandlerTestCaseBase):
         entity = self.backend.get_entity(self.networks[1].id)
         self.assertEqual(str(entity.occi_list_categories()[-1]),
                 str(IPNetworkMixin))
+
+    def test_put(self):
+        path = self.CustomMixin.location
+        entities = self.computes
+
+        request_headers = [('Accept', 'text/uri-list')]
+        request_body = '\r\n'.join([str(entity.id) for entity in entities])
+        response = self._put(headers=request_headers, body=request_body,
+                content_type='text/uri-list', path=path)
+
+        self.assertEqual(response.status, 200)
+
+        # Verify the collection has been replaced
+        response = self._get(path=path, headers=[('accept', 'text/uri-list')])
+        self.assertEqual(response.status, 200)
+
+        expected_body = []
+        for entity in entities:
+            expected_body.append(self._loc(entity))
+        self._verify_body(response.body, expected_body)
 
     def test_delete(self, path=None):
         path = path or IPNetworkMixin.location
