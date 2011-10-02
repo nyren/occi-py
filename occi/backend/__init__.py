@@ -68,24 +68,18 @@ class ServerBackend(object):
         """
         raise self.ServerBackendError('Server Backend must implement filter_entities')
 
-    def save_entities(self, entities, user=None):
-        """Save a set of entities (resource instances) in a single atomic
-        operation.
+    def save_entities(self, entities=None, delete_entity_ids=None, user=None):
+        """Save and delete a set of entities (resource instances) in a single
+        atomic operation.
 
-        :param entities: A list of `Entity` objects to persist.
+        :param entities: A list of `Entity` objects to persist. The `Entity`
+            object contains the complete representation and any existing data
+            must fully replaced.
+        :param delete_entity_ids: A list of `Entity` IDs to be deleted.
         :keyword user: The authenticated user.
         :return: A list of the persisted `Entity` objects.
         """
         raise self.ServerBackendError('Server Backend must implement save_entities')
-
-    def delete_entities(self, entity_ids, user=None):
-        """Delete a set of entities (resource instances) in a single atomic
-        operation.
-
-        :param entity_ids: A list `Entity` IDs to delete.
-        :keyword user: The authenticated user.
-        """
-        raise self.ServerBackendError('Server Backend must implement delete_entities')
 
     def exec_action(self, action, entity, payload=None, user=None):
         """Execute `Action` on the given `Entity` (resource instance).
@@ -108,28 +102,37 @@ class ServerBackend(object):
         """
         raise self.ServerBackendError('Server Backend must implement exec_action_on_collection')
 
-    def add_user_mixin(self, mixin, user=None):
-        """Validate a user-supplied Mixin instance and perform any
-        backend-specific tasks related to the event. The method must return the
-        mixin instance to be added, either a modified version or the original
-        user-supplied Mixin instance.
+    def add_user_category(self, category, user=None):
+        """Validate a user-supplied `Category`, `Kind`, `Mixin` instance and
+        perform any backend-specific tasks related to the event. The method
+        must return the category instance to be added, either a modified
+        version or the original user-supplied instance.
 
-        :param mixin: User-defined `Mixin` instance.
+        The method is expected to throw a InvalidOperation exception if the
+        removal operation is to be refused.
+
+        NOTE: As of OCCI 1.1 only user-defined Mixins need to be supported.
+
+        :param mixin: User-defined `Category`, `Kind` or `Mixin` instance.
         :keyword user: The authenticated user.
-        :return: The actual `Mixin` instance to be added.
+        :return: The actual instance to be added.
         """
-        raise NotImplementedError('User-defined Mixins not supported')
+        raise NotImplementedError('User-defined types not supported')
 
-    def remove_user_mixin(self, mixin, user=None):
-        """Validate the removal of a user-defined `Mixin` instance and perform
-        any backend-specific tasks related to the event. The method is expected
-        to throw a InvalidOperation exception if the removal operation is to be
-        refused.
+    def remove_user_category(self, mixin, user=None):
+        """Validate the removal of a user-defined `Category`, `Kind` or `Mixin`
+        instance and perform any backend-specific tasks related to the event.
 
-        :param mixin: User-defined `Mixin` instance to be removed.
+        The method is expected to throw a InvalidOperation exception if the
+        removal operation is to be refused.
+
+        NOTE: As of OCCI 1.1 only user-defined Mixins need to be supported.
+
+        :param mixin: User-defined `Category`, `Kind` or `Mixin` instance to be
+            removed.
         :keyword user: The authenticated user.
         """
-        raise NotImplementedError('User-defined Mixins not supported')
+        raise NotImplementedError('User-defined types not supported')
 
 if __name__ == "__main__":
     import doctest

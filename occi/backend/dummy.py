@@ -20,7 +20,7 @@
 import uuid
 
 from occi import OrderedDict
-from occi.core import Entity, Resource, Link
+from occi.core import Entity, Resource, Link, Mixin
 from occi.backend import ServerBackend
 
 class DummyBackend(ServerBackend):
@@ -44,7 +44,8 @@ class DummyBackend(ServerBackend):
     1
     >>> backend.get_entity(s_compute.id) == compute
     True
-    >>> backend.delete_entities([entity.id for entity in t])
+    >>> backend.save_entities(delete_entity_ids=[entity.id for entity in t])
+    []
     >>> [entity.id for entity in backend.filter_entities(categories=[ComputeKind])] == [s_compute.id]
     True
     """
@@ -52,6 +53,7 @@ class DummyBackend(ServerBackend):
     def __init__(self):
         super(DummyBackend, self).__init__()
         self._db = OrderedDict()
+        self._user_mixins = {}
 
     def auth_user(self, identity, secret=None, method=None, user=None):
         return None
@@ -89,9 +91,11 @@ class DummyBackend(ServerBackend):
 
         return result
 
-    def save_entities(self, entities, user=None):
+    def save_entities(self, entities=None, delete_entity_ids=None, user=None):
+        if delete_entity_ids:
+            self._delete_entities(delete_entity_ids, user=user)
         saved_entities = []
-        for entity in entities:
+        for entity in entities or ():
             # Generate ID if new instance
             if not entity.id:
                 entity.occi_set_attribute('occi.core.id', uuid.uuid4())
@@ -113,7 +117,7 @@ class DummyBackend(ServerBackend):
             saved_entities.append(entity)
         return saved_entities
 
-    def delete_entities(self, entity_ids, user=None):
+    def _delete_entities(self, entity_ids, user=None):
         for entity_id in entity_ids:
             entity_id = str(entity_id)
             try:
@@ -136,11 +140,23 @@ class DummyBackend(ServerBackend):
         except AttributeError:
             return None
 
-    def add_user_mixin(self, mixin, user=None):
-        return mixin
+    def exec_action_on_collection(self, action, collection, payload=None, user=None):
+        # FIXME: make atomic
+        for entity in self.filter_entities(categories=[collection], user=user):
+            self.exec_action(action, entity, payload=payload, user=user)
+        return None
 
-    def remove_user_mixin(self, mixin, user=None):
-        pass
+    def add_user_category(self, category, user=None):
+        if not isinstance(category, Mixin):
+            raise self.InvalidOperation('Permission denied')
+        self._user_mixins[str(category)] = category
+        return category
+
+    def remove_user_category(self, category, user=None):
+        try:
+            del self._user_mixins[str(category)]
+        except KeyError:
+            raise self.InvalidOperation('Permission denied')
 
 if __name__ == "__main__":
     import doctest
